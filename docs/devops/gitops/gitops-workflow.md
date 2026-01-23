@@ -6,7 +6,7 @@ author: brunogao
 category: devops
 tags: [gitops, gitea, harbor, argocd, kubernetes, ci-cd]
 series: GitOps 实践系列
-seriesOrder: 4
+seriesOrder: 3
 difficulty: intermediate
 readingTime: 25 min
 featured: true
