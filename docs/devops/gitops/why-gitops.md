@@ -762,37 +762,117 @@ chore: 更新镜像版本到 v1.2.3
 - 不要在 Git 中存储明文密钥
 - 定期轮换密钥
 
-## 🚀 GitOps 的延伸应用
+## 🚀 GitOps 的延伸应用：三层治理模型
 
-GitOps 不仅仅用于应用部署，我们还将其应用于：
+GitOps 不仅仅用于应用部署。在我们的实践中，我们将 GitOps 扩展为**三层治理模型**，覆盖从应用到基础设施的完整生命周期。
 
-### 1. 基础设施管理
+### L1：应用交付 GitOps（Application Delivery）
 
-```
-infrastructure-gitops/
-├── clusters/          # 集群配置
-├── namespaces/        # 命名空间
-├── rbac/              # 权限配置
-└── monitoring/        # 监控配置
-```
-
-### 2. 数据库变更
+**管理对象**：应用代码 + 运行时配置
 
 ```
-database-gitops/
-├── migrations/        # 数据库迁移脚本
-├── schemas/           # 表结构定义
-└── seeds/             # 初始数据
+app-gitops/
+├── base/
+│   ├── deployment.yaml      # 应用部署配置
+│   ├── service.yaml          # 服务配置
+│   └── ingress.yaml          # 入口配置
+└── overlays/
+    ├── dev/                  # 开发环境
+    ├── staging/              # 测试环境
+    └── production/           # 生产环境
 ```
 
-### 3. 配置管理
+**典型场景**：
+- 应用版本发布
+- 配置变更（环境变量、资源限制）
+- 流量管理（金丝雀、蓝绿）
+
+**我们的实践**：
+- 20+ 应用使用 L1 GitOps
+- 平均每天 50+ 次自动部署
+- 变更失败率 < 5%
+
+### L2：平台/基础设施 GitOps（Platform & Infrastructure）
+
+**管理对象**：集群能力、命名空���、RBAC、监控
 
 ```
-config-gitops/
-├── configmaps/        # 应用配置
-├── secrets/           # 密钥配置
-└── policies/          # 策略配置
+platform-gitops/
+├── clusters/
+│   ├── cluster-1/
+│   │   ├── namespaces.yaml   # 命名空间定义
+│   │   ├── rbac.yaml          # 权限配置
+│   │   └── quotas.yaml        # 资源配额
+│   └── cluster-2/
+├── monitoring/
+│   ├── prometheus/            # 监控配置
+│   ├── grafana/               # 仪表板
+│   └── alertmanager/          # 告警规则
+└── networking/
+    ├── ingress-controller/    # 入口控制器
+    └── service-mesh/          # 服务网格
 ```
+
+**典型场景**：
+- 新增命名空间和权限
+- 监控规则变更
+- 网络策略调整
+- 集群组件升级
+
+**我们的实践**：
+- 8+ 集群使用 L2 GitOps
+- 所有基础设施变更都可追溯
+- 新增环境时间从 2 天降到 2 小时
+
+### L3：变更治理 GitOps（Change Governance）
+
+**管理对象**：数据库 schema、策略、准入与审计
+
+```
+governance-gitops/
+├── database/
+│   ├── migrations/            # 数据库迁移
+│   │   ├── V001__init.sql
+│   │   └── V002__add_users.sql
+│   └── schemas/               # 表结构定义
+├── policies/
+│   ├── pod-security.yaml      # Pod 安全策略
+│   ├── network-policy.yaml    # 网络策略
+│   └── admission-rules.yaml   # 准入规则
+└── compliance/
+    ├── audit-config.yaml      # 审计配置
+    └── backup-policy.yaml     # 备份策略
+```
+
+**典型场景**：
+- 数据库 schema 变更
+- 安全策略更新
+- 合规配置调整
+- 备份策略变更
+
+**我们的实践**：
+- 数据库变更也纳入 GitOps
+- 所有策略变更都有审批记录
+- 合规审计 100% 可追溯
+
+### 三层模型的价值
+
+**统一的治理模型**：
+- 所有变更都在 Git 中
+- 统一的审批流程
+- 统一的回滚机制
+
+**清晰的职责边界**：
+- L1：应用团队负责
+- L2：平台团队负责
+- L3：安全/DBA 团队负责
+
+**渐进式采用**：
+- 先从 L1 开始（应用交付）
+- 成熟后扩展到 L2（平台管理）
+- 最后覆盖 L3（治理合规）
+
+> **与第二篇的衔接**：第二篇《GitOps 架构设计》将详细讲解如何设计和实施这三层模型，包括仓库结构、权限设计、工具选型等。
 
 ## 💭 最后的思考
 
@@ -871,13 +951,19 @@ GitOps 解决了很多问题，但也带来了新的挑战：
 
 我们是一个专注于私有化项目交付的技术团队，在多个行业（健康康养、无人机、数据处理）有丰富的 GitOps 实践经验。
 
-本文基于我们在 **5 个项目、3 个行业、2 年时间**的实践总结而成。
+本文基于我们在 **5 个项目、3 个行业、累计 24+ 个月交付周期**中的实践总结而成。
 
 **项目规模**：
 - 管理应用数：20+
 - 管理集群数：8+
 - 日均部署次数：50+
 - 团队规模：15 人
+- GitOps 稳定运行：18+ 个月
+
+**行业覆盖**：
+- 健康康养：医疗数据平台、健康管理系统
+- 无人机：飞控系统、数据采集平台
+- 数据处理：大数据分析平台、实时处理系统
 
 我们相信，好的方法论应该是**可复制、可验证、可改进**的。
 
