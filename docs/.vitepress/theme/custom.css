@@ -233,14 +233,23 @@
    表格专业样式
    ============================================ */
 
-.vp-doc table {
-  display: block;
+/* 表格容器 - 确保全宽显示 */
+.vp-doc .table-container {
   width: 100%;
   overflow-x: auto;
+  margin: 24px 0;
+}
+
+.vp-doc table {
+  width: 100%;
+  min-width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
   margin: 24px 0;
   border-radius: 12px;
   border: 1px solid var(--vp-c-divider);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  table-layout: auto; /* 自动调整列宽 */
 }
 
 .dark .vp-doc table {
@@ -261,11 +270,14 @@
   color: var(--vp-c-brand-1);
   padding: 16px 20px;
   border-bottom: 2px solid var(--vp-c-brand-1);
+  text-align: left;
+  white-space: nowrap; /* 防止表头换行 */
 }
 
 .vp-doc table td {
   padding: 14px 20px;
   border-bottom: 1px solid var(--vp-c-divider);
+  vertical-align: top;
 }
 
 .vp-doc table tbody tr {
