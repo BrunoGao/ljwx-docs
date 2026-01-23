@@ -505,27 +505,194 @@ gitops-repo/
 - 使用 Kustomize 管理多环境
 - 保持配置的可读性和可维护性
 
-### 坑 5：过度依赖自动同步
+### 坑 5：生产环境同步策略不当
 
 **错误做法**：
 - 所有环境都开启自动同步
 - 生产环境也自动同步
 - 没有人工审批环节
 
-**教训**：
-- ✅ dev 环境：自动同步
-- ✅ staging 环境：自动同步
-- ⚠️ production 环境：手动同步或需要审批
+**我们的实践**：
 
-**建议配置**：
+生产环境常见的三种策略（按风险从低到高）：
+
+**A. 手动同步 + 漂移告警（推荐默认）**
 ```yaml
-# 生产环境 Application
+syncPolicy:
+  # 不自动同步，但持续检测差异
+  automated: null
+  # 手动触发同步
+```
+- 生产不自动 apply，但持续对比差异并告警
+- 适合合规/审批强的客户
+- 我们 80% 的项目使用这种策略
+
+**B. 自动同步（不自动 prune）+ 变更门禁（高成熟团队）**
+```yaml
 syncPolicy:
   automated:
-    prune: false      # 不自动删除
-    selfHeal: false   # 不自动修复
-  # 需要手动触发同步
+    prune: false      # 不自动删除资源
+    selfHeal: true    # 自动同步新版本
 ```
+- 自动同步新版本，但不自动删除资源
+- 需要强制 PR 审批、发布窗口与准入检查
+- 适合成熟团队和高频发布场景
+
+**C. 全自动（含 self-heal/prune）（仅适合内部平台或低风险业务）**
+```yaml
+syncPolicy:
+  automated:
+    prune: true
+    selfHeal: true
+```
+- 适合平台团队自用或明确能承担风险的系统
+- 需要完善的监控和快速回滚机制
+
+**教训**：
+- 不同环境、不同项目应该有不同的策略
+- 生产环境的策略应该由团队成熟度和业务风险决定
+- 策略可以随着团队成熟度逐步演进
+
+### 坑 6：Secrets 管理不当（高级坑）
+
+**错误做法**：
+- 把敏感配置散落在多个命名空间
+- 手工维护密钥，没有轮换机制
+- 明文密钥进入 Git（即使是私有仓库）
+- 每个环境的密钥管理方式不一致
+
+**真实场景**：
+```yaml
+# ❌ 错误：明文密钥提交到 Git
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-secret
+stringData:
+  password: "MyP@ssw0rd123"  # 明文密码
+```
+
+**正确做法**：
+
+**方案 A：Sealed Secrets（推荐入门）**
+```bash
+# 1. 创建密钥
+kubectl create secret generic db-secret \
+  --from-literal=password=secret123 \
+  --dry-run=client -o yaml | \
+  kubeseal -o yaml > sealed-secret.yaml
+
+# 2. 提交加密后的密钥到 Git
+git add sealed-secret.yaml
+git commit -m "chore: add sealed database secret"
+```
+
+**方案 B：External Secrets + Vault（推荐生产）**
+```yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: db-secret
+spec:
+  secretStoreRef:
+    name: vault-backend
+  target:
+    name: db-secret
+  data:
+  - secretKey: password
+    remoteRef:
+      key: database/prod/password
+```
+
+**私有化特点**：
+- 客户侧经常要求"密钥不出内网"
+- 需要定期轮换密钥（合规要求）
+- 权限隔离（开发不能看生产密钥）
+- 审计记录（谁在何时访问了哪些密钥）
+
+**我们的实践**：
+- 开发/测试环境：Sealed Secrets（简单够用）
+- 生产环境：External Secrets + Vault（安全可审计）
+- 建立密钥轮换机制（每季度轮换一次）
+- 所有密钥访问都有审计日志
+
+### 坑 7：多集群、多租户的 Application 爆炸（高级坑）
+
+**错误做法**：
+- 每个环境每个应用一个 Application
+- 手工创建和维护 Application
+- 配置散落在多个文件中
+
+**真实场景**：
+```
+5 个项目 × 3 个环境 × 2 个集群 = 30 个 Application
+每次新增项目或环境，都要手工创建配置
+```
+
+**问题**：
+- Application 数量爆炸，维护成本高
+- 配置重复，容易出错
+- 新增项目/环境的成本高
+- 难以统一管理和审计
+
+**正确做法**：
+
+**方案 A：App-of-Apps 模式**
+```yaml
+# apps/root-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+spec:
+  source:
+    path: apps/
+  # 这个 Application 会自动创建其他 Application
+```
+
+**方案 B：ApplicationSet（推荐）**
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapp-all-envs
+spec:
+  generators:
+  - list:
+      elements:
+      - env: dev
+        cluster: cluster1
+      - env: staging
+        cluster: cluster1
+      - env: production
+        cluster: cluster2
+  template:
+    metadata:
+      name: 'myapp-{{env}}'
+    spec:
+      source:
+        path: 'overlays/{{env}}'
+      destination:
+        server: '{{cluster}}'
+        namespace: 'myapp-{{env}}'
+```
+
+**私有化特点**：
+- 客户多、环境多，复制成本是主要成本
+- 每个客户可能有独立的集群
+- 配置需要模板化和参数化
+- 需要支持快速复制和扩展
+
+**我们的实践**：
+- 使用 ApplicationSet 管理多环境
+- 配置模板化，参数通过 Git 管理
+- 新增客户/环境只需添加参数，无需手工创建
+- 从 30 个手工维护的 Application 降到 3 个 ApplicationSet
+
+**效果**：
+- 新增环境时间：从 2 小时降到 5 分钟
+- 配置一致性：从 70% 提升到 95%+
+- 维护成本：降低 80%
 
 ## 🎯 最佳实践总结
 
