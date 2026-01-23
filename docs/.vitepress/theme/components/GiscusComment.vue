@@ -27,11 +27,11 @@ import { useData } from 'vitepress'
 const { isDark, lang: docLang } = useData()
 
 // Giscus 配置
-// 请替换为您自己的 GitHub 仓库信息
-const repo = computed(() => 'ljwx/ljwx-docs') // 替换为您的仓库
-const repoId = computed(() => 'R_kgDOxxxxxx') // 替换为您的仓库 ID
-const category = computed(() => 'General') // 讨论分类
-const categoryId = computed(() => 'DIC_kwDOxxxxxx') // 替换为您的分类 ID
+// GitHub 仓库：BrunoGao/ljwx-docs
+const repo = computed(() => 'BrunoGao/ljwx-docs')
+const repoId = computed(() => 'R_kgDOQ_ockw')
+const category = computed(() => 'Announcements')
+const categoryId = computed(() => 'DIC_kwDOQ_ock84C1Uqp')
 
 // 主题跟随 VitePress
 const theme = computed(() => isDark.value ? 'dark' : 'light')
