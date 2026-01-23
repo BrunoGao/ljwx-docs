@@ -1,9 +1,18 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
 // https://vitepress.dev/reference/site-config
-export default defineConfig({
+export default withMermaid(defineConfig({
   title: "LJWX Docs",
   description: "知识资产化系统文档",
+
+  // Mermaid 配置
+  mermaid: {
+    // 可选：自定义 Mermaid 配置
+  },
+  mermaidPlugin: {
+    class: 'mermaid'
+  },
 
   // 多语言配置
   locales: {
@@ -181,11 +190,6 @@ export default defineConfig({
     ]
   },
 
-  // Mermaid 图表支持
-  mermaid: {
-    // Mermaid 配置
-  },
-
   // 启用 MermaidJS
   vite: {
     optimizeDeps: {
@@ -197,4 +201,4 @@ export default defineConfig({
   build: {
     outDir: '../dist'
   }
-})
+}))
