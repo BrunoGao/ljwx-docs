@@ -113,7 +113,7 @@ export default defineConfig({
 
     // 社交链接
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/ljwx' }
+      { icon: 'github', link: 'https://github.com/BrunoGao/ljwx-docs' }
     ],
 
     // 搜索配置 - 使用本地搜索

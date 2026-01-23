@@ -17,7 +17,7 @@ hero:
       link: /knowledge-asset-automation-design
     - theme: alt
       text: GitHub
-      link: https://github.com/ljwx
+      link: https://github.com/BrunoGao/ljwx-docs
 
 features:
   - icon: 📚
@@ -121,7 +121,7 @@ graph LR
 
 ```bash
 # 克隆仓库
-git clone https://github.com/ljwx/ljwx-docs.git
+git clone https://github.com/BrunoGao/ljwx-docs.git
 cd ljwx-docs
 
 # 安装依赖
@@ -160,5 +160,5 @@ npm run docs:serve
 ## 支持与反馈
 
 - **技术支持**：brunogao
-- **问题反馈**：[GitHub Issues](https://github.com/ljwx/ljwx-docs/issues)
+- **问题反馈**：[GitHub Issues](https://github.com/BrunoGao/ljwx-docs/issues)
 - **文档贡献**：欢迎提交 Pull Request

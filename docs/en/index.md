@@ -17,7 +17,7 @@ hero:
       link: /en/knowledge-asset-automation-design
     - theme: alt
       text: GitHub
-      link: https://github.com/ljwx
+      link: https://github.com/BrunoGao/ljwx-docs
 
 features:
   - icon: 📚
@@ -121,7 +121,7 @@ Document metadata includes:
 
 ```bash
 # Clone repository
-git clone https://github.com/ljwx/ljwx-docs.git
+git clone https://github.com/BrunoGao/ljwx-docs.git
 cd ljwx-docs
 
 # Install dependencies
@@ -160,5 +160,5 @@ npm run docs:serve
 ## Support and Feedback
 
 - **Technical Support**: brunogao
-- **Issue Reporting**: [GitHub Issues](https://github.com/ljwx/ljwx-docs/issues)
+- **Issue Reporting**: [GitHub Issues](https://github.com/BrunoGao/ljwx-docs/issues)
 - **Documentation Contribution**: Pull Requests are welcome
