@@ -9,19 +9,10 @@ description: 测试流程图、架构图、视频和各种视觉元素
 
 ## 📊 流程图测试
 
-### 1. 基础流程图
+### 1. 基础流程图![2871d8a00a88be58c0c34d8280a5d383](https://ljwx-website-1300607181.cos.ap-guangzhou.myqcloud.com/pic/2871d8a00a88be58c0c34d8280a5d383.png)
 
 ```mermaid
-graph TD
-    A[开始] --> B{是否登录?}
-    B -->|是| C[显示主页]
-    B -->|否| D[跳转登录页]
-    D --> E[输入凭证]
-    E --> F{验证成功?}
-    F -->|是| C
-    F -->|否| G[显示错误]
-    G --> E
-    C --> H[结束]
+
 ```
 
 ### 2. 横向流程图
