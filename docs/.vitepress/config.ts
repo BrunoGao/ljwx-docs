@@ -23,8 +23,55 @@ export default withMermaid(defineConfig({
         nav: [
           { text: '首页', link: '/' },
           { text: '快速开始', link: '/QUICK-REFERENCE' },
-          { text: '指南', link: '/guide/' },
-          { text: '视觉测试', link: '/visual-test' }
+          {
+            text: 'DevOps',
+            items: [
+              { text: 'GitOps 实践', link: '/devops/gitops/' },
+              { text: 'CI/CD', link: '/devops/ci-cd/' },
+              { text: '基础设施', link: '/devops/infrastructure/' }
+            ]
+          },
+          {
+            text: '数据分析',
+            items: [
+              { text: 'n8n 自动化', link: '/data-analytics/n8n/' },
+              { text: '数据可视化', link: '/data-analytics/visualization/' },
+              { text: 'ETL 工具', link: '/data-analytics/etl/' }
+            ]
+          },
+          {
+            text: 'AI/ML',
+            items: [
+              { text: '大语言模型', link: '/ai-ml/llm/' },
+              { text: '模型服务', link: '/ai-ml/model-serving/' },
+              { text: 'AI 应用', link: '/ai-ml/applications/' }
+            ]
+          },
+          {
+            text: '可观测性',
+            items: [
+              { text: '日志管理', link: '/observability/logging/' },
+              { text: '链路追踪', link: '/observability/tracing/' },
+              { text: '指标监控', link: '/observability/metrics/' }
+            ]
+          },
+          {
+            text: '项目管理',
+            items: [
+              { text: 'Plane 实践', link: '/project-management/plane/' },
+              { text: '敏捷开发', link: '/project-management/agile/' }
+            ]
+          },
+          {
+            text: '更多',
+            items: [
+              { text: '架构设计', link: '/architecture/' },
+              { text: '安全实践', link: '/security/' },
+              { text: '案例研究', link: '/case-studies/' },
+              { text: '资源中心', link: '/resources/' },
+              { text: '视觉测试', link: '/visual-test' }
+            ]
+          }
         ],
 
         sidebar: {
