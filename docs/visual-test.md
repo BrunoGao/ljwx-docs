@@ -17,44 +17,11 @@ description: 测试流程图、架构图、视频和各种视觉元素
 
 ### 2. 横向流程图
 
-```mermaid
-graph LR
-    A[用户请求] --> B[负载均衡]
-    B --> C[Web服务器]
-    B --> D[Web服务器]
-    B --> E[Web服务器]
-    C --> F[应用服务]
-    D --> F
-    E --> F
-    F --> G[数据库]
-    F --> H[缓存]
-```
+![23f797de6521baf3bbafb80ecac0f6c6](https://ljwx-website-1300607181.cos.ap-guangzhou.myqcloud.com/pic/23f797de6521baf3bbafb80ecac0f6c6.png)
 
 ### 3. 复杂业务流程
 
-```mermaid
-graph TB
-    Start[用户提交文档] --> Validate{格式验证}
-    Validate -->|通过| Extract[提取元数据]
-    Validate -->|失败| Error1[返回错误]
-
-    Extract --> Parse[解析内容]
-    Parse --> Enrich[内容增强]
-
-    Enrich --> Store{存储选择}
-    Store -->|本地| Local[本地存储]
-    Store -->|MinIO| MinIO[对象存储]
-    Store -->|Dify| Dify[知识库]
-
-    Local --> Index[建立索引]
-    MinIO --> Index
-    Dify --> Index
-
-    Index --> Notify[发送通知]
-    Notify --> End[完成]
-
-    Error1 --> End
-```
+![b7f2c7b4fbcb298f11fac5ef31560051](https://ljwx-website-1300607181.cos.ap-guangzhou.myqcloud.com/pic/b7f2c7b4fbcb298f11fac5ef31560051.png)
 
 ## 🏗️ 架构图测试
 
