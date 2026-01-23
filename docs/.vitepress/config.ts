@@ -14,7 +14,8 @@ export default defineConfig({
         nav: [
           { text: '首页', link: '/' },
           { text: '快速开始', link: '/QUICK-REFERENCE' },
-          { text: '指南', link: '/guide/' }
+          { text: '指南', link: '/guide/' },
+          { text: '视觉测试', link: '/visual-test' }
         ],
 
         sidebar: {
@@ -69,7 +70,8 @@ export default defineConfig({
         nav: [
           { text: 'Home', link: '/en/' },
           { text: 'Quick Start', link: '/en/QUICK-REFERENCE' },
-          { text: 'Guide', link: '/en/guide/' }
+          { text: 'Guide', link: '/en/guide/' },
+          { text: 'Visual Test', link: '/en/visual-test' }
         ],
 
         sidebar: {
