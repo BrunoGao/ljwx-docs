@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- LJWX Logo -->
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3451b2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#5672cd;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="90" fill="url(#gradient)" opacity="0.1"/>
+
+  <!-- Book icon representing documentation -->
+  <path d="M 50 60 L 50 140 L 150 140 L 150 60 Z"
+        fill="none"
+        stroke="url(#gradient)"
+        stroke-width="4"
+        stroke-linejoin="round"/>
+
+  <!-- Pages -->
+  <line x1="70" y1="60" x2="70" y2="140"
+        stroke="url(#gradient)"
+        stroke-width="2"/>
+
+  <!-- Text lines -->
+  <line x1="85" y1="80" x2="135" y2="80"
+        stroke="url(#gradient)"
+        stroke-width="3"
+        stroke-linecap="round"/>
+  <line x1="85" y1="100" x2="135" y2="100"
+        stroke="url(#gradient)"
+        stroke-width="3"
+        stroke-linecap="round"/>
+  <line x1="85" y1="120" x2="120" y2="120"
+        stroke="url(#gradient)"
+        stroke-width="3"
+        stroke-linecap="round"/>
+</svg>
