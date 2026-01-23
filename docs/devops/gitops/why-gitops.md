@@ -18,19 +18,71 @@ featured: true
 
 ## 📋 写在前面
 
-这不是一篇 GitOps 教程，而是我们在多个私有化项目中实践 GitOps 后的交付方法论沉淀。
+::: tip 💡 这是一篇方法论文章，不是技术教程
+这不是一篇 GitOps 教程，而是我们在多个私有化项目中实践 GitOps 后的**交付方法论沉淀**。
 
-**你将从本文获得：**
+如果你想了解"如何部署 Argo CD"，这篇文章可能不适合你；
+但如果你想知道"为什么要用 GitOps"以及"如何避免踩坑"，这篇文章会给你答案。
+:::
 
-1. **在私有化交付中引入 GitOps 的决策逻辑（Why）** - 我们遇到的真实问题与为什么选择 GitOps
-2. **我们对 GitOps 的工程化定义与边界（What）** - 不是工具，而是治理模型
-3. **可复用的组织/流程/技术最佳实践清单（How）** - 可以直接应用到你的项目
-4. **真实踩坑与反模式，避免"照搬 GitOps 失败"（Lessons）** - 我们踩过的坑和解决方案
+### 🎁 你将从本文获得
 
-**阅读导航：**
-- 如果你在评估是否引入 GitOps → 重点看"背景"和"为什么不是传统 CI/CD"
-- 如果你已经在用 GitOps 但遇到问题 → 直接跳到"踩坑与反模式"
-- 如果你想了解 GitOps 的边界 → 看"延伸应用"和"最佳实践"
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 24px 0;">
+
+<div style="padding: 20px; border-left: 4px solid #3451b2; background: linear-gradient(135deg, rgba(52, 81, 178, 0.05) 0%, rgba(52, 81, 178, 0.02) 100%); border-radius: 8px;">
+  <div style="font-size: 18px; font-weight: 600; color: #3451b2; margin-bottom: 8px;">
+    1️⃣ 决策逻辑（Why）
+  </div>
+  <div style="color: var(--vp-c-text-2); line-height: 1.6;">
+    在私有化交付中引入 GitOps 的决策逻辑 - 我们遇到的真实问题与为什么选择 GitOps
+  </div>
+</div>
+
+<div style="padding: 20px; border-left: 4px solid #10b981; background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.02) 100%); border-radius: 8px;">
+  <div style="font-size: 18px; font-weight: 600; color: #10b981; margin-bottom: 8px;">
+    2️⃣ 工程化定义（What）
+  </div>
+  <div style="color: var(--vp-c-text-2); line-height: 1.6;">
+    我们对 GitOps 的工程化定义与边界 - 不是工具，而是治理模型
+  </div>
+</div>
+
+<div style="padding: 20px; border-left: 4px solid #f59e0b; background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(245, 158, 11, 0.02) 100%); border-radius: 8px;">
+  <div style="font-size: 18px; font-weight: 600; color: #f59e0b; margin-bottom: 8px;">
+    3️⃣ 最佳实践（How）
+  </div>
+  <div style="color: var(--vp-c-text-2); line-height: 1.6;">
+    可复用的组织/流程/技术最佳实践清单 - 可以直接应用到你的项目
+  </div>
+</div>
+
+<div style="padding: 20px; border-left: 4px solid #ef4444; background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.02) 100%); border-radius: 8px;">
+  <div style="font-size: 18px; font-weight: 600; color: #ef4444; margin-bottom: 8px;">
+    4️⃣ 踩坑经验（Lessons）
+  </div>
+  <div style="color: var(--vp-c-text-2); line-height: 1.6;">
+    真实踩坑与反模式，避免"照搬 GitOps 失败" - 我们踩过的坑和解决方案
+  </div>
+</div>
+
+</div>
+
+### 🧭 阅读导航
+
+::: info 根据你的需求选择阅读路径
+
+**📊 正在评估 GitOps？**
+→ 重点看 [背景](#🎯-背景：我们面对的真实问题) 和 [为什么不是传统 CI/CD](#🤔-为什么不是传统-cicd)
+
+**🔧 已在使用但遇到问题？**
+→ 直接跳到 [踩坑与反模式](#🚧-我们踩过的坑与反模式)
+
+**🎯 想了解 GitOps 的边界？**
+→ 查看 [延伸应用](#🚀-gitops-的延伸应用：三层治理模型) 和 [最佳实践](#🎯-最佳实践总结)
+
+:::
+
+---
 
 ## 🎯 背景：我们面对的真实问题
 
