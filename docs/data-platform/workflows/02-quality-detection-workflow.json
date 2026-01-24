@@ -1,0 +1,369 @@
+{
+  "name": "AI数据质量检测工作流",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "quality-check",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - 接收数据",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "quality-check-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 第1层检测：硬编码规则（快速过滤）\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  const checks = {\n    range_check: true,\n    completeness_check: true,\n    timestamp_check: true,\n    errors: [],\n    need_llm: false\n  };\n  \n  // 数值范围检查\n  if (data.temperature !== undefined) {\n    if (data.temperature < -50 || data.temperature > 200) {\n      checks.range_check = false;\n      checks.errors.push({\n        type: 'range',\n        field: 'temperature',\n        value: data.temperature,\n        message: '温度超出正常范围 (-50~200°C)'\n      });\n    }\n  }\n  \n  // 必填字段检查\n  const requiredFields = ['deviceId', 'timestamp'];\n  for (const field of requiredFields) {\n    if (!data[field]) {\n      checks.completeness_check = false;\n      checks.errors.push({\n        type: 'completeness',\n        field: field,\n        message: `缺少必填字段: ${field}`\n      });\n    }\n  }\n  \n  // 时间戳有效性检查\n  if (data.timestamp) {\n    const timestamp = new Date(data.timestamp).getTime();\n    const now = Date.now();\n    if (timestamp > now) {\n      checks.timestamp_check = false;\n      checks.errors.push({\n        type: 'timestamp',\n        field: 'timestamp',\n        value: data.timestamp,\n        message: '时间戳在未来'\n      });\n    }\n  }\n  \n  // 判断是否需要LLM进一步检测\n  // 逻辑矛盾等复杂情况需要LLM\n  if (data.status === '运行中' && data.power === 0) {\n    checks.need_llm = true;\n    checks.errors.push({\n      type: 'logic',\n      fields: ['status', 'power'],\n      message: '可能存在逻辑矛盾：状态为运行中但功率为0',\n      severity: 'medium'\n    });\n  }\n  \n  results.push({\n    json: {\n      ...data,\n      _layer1_checks: checks,\n      _passed_layer1: checks.range_check && checks.completeness_check && checks.timestamp_check\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "layer1-detection",
+      "name": "第1层检测 - 规则引擎",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json._passed_layer1}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "layer1-router",
+      "name": "第1层路由",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json._layer1_checks.need_llm}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "llm-router",
+      "name": "LLM检测路由",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 第3层检测：LLM异常检测（模拟）\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // 模拟LLM分析\n  const llmAnalysis = {\n    is_anomaly: false,\n    anomaly_type: 'none',\n    severity: 'none',\n    reasons: [],\n    evidence: [],\n    suggestion: '数据正常',\n    confidence: 0.85\n  };\n  \n  // 检测逻辑矛盾\n  if (data.status === '运行中' && data.power === 0) {\n    llmAnalysis.is_anomaly = true;\n    llmAnalysis.anomaly_type = 'logic';\n    llmAnalysis.severity = 'medium';\n    llmAnalysis.reasons = [\n      '设备状态显示运行中，但功率为0',\n      '可能是传感器故障或设备进入待机模式'\n    ];\n    llmAnalysis.evidence = [\n      'status=运行中',\n      'power=0'\n    ];\n    llmAnalysis.suggestion = '建议检查设备传感器状态，或确认设备是否处于特殊运行模式';\n    llmAnalysis.confidence = 0.75;\n  }\n  \n  results.push({\n    json: {\n      ...data,\n      _llm_analysis: llmAnalysis,\n      _final_status: llmAnalysis.is_anomaly ? 'anomaly_detected' : 'normal'\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "llm-detection",
+      "name": "第3层检测 - LLM分析",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 直接标记为正常（规则已明确）\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  results.push({\n    json: {\n      ...item.json,\n      _final_status: 'normal',\n      _processing_method: 'rule-based',\n      _llm_analysis: {\n        is_anomaly: false,\n        anomaly_type: 'none',\n        severity: 'none',\n        confidence: 1.0\n      }\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "mark-normal",
+      "name": "标记正常",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json._final_status}}",
+              "value2": "anomaly_detected"
+            }
+          ]
+        }
+      },
+      "id": "anomaly-router",
+      "name": "异常路由",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 异常分级处理\nconst items = $input.all();\nconst highRisk = [];\nconst mediumRisk = [];\nconst lowRisk = [];\n\nfor (const item of items) {\n  const severity = item.json._llm_analysis?.severity || item.json._layer1_checks?.errors?.[0]?.severity || 'low';\n  \n  const alertData = {\n    json: {\n      alert_id: `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,\n      severity: severity,\n      data: item.json,\n      anomaly_info: item.json._llm_analysis || item.json._layer1_checks,\n      created_at: new Date().toISOString(),\n      requires_immediate_action: severity === 'high'\n    }\n  };\n  \n  if (severity === 'high') {\n    highRisk.push(alertData);\n  } else if (severity === 'medium') {\n    mediumRisk.push(alertData);\n  } else {\n    lowRisk.push(alertData);\n  }\n}\n\nreturn [highRisk, mediumRisk, lowRisk];"
+      },
+      "id": "severity-split",
+      "name": "异常分级",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 高风险异常 - 立即告警\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  results.push({\n    json: {\n      alert_sent: true,\n      channel: 'urgent',\n      message: `【紧急】检测到高风险异常: ${item.json.anomaly_info?.reasons?.[0] || '数据异常'}`,\n      data: item.json,\n      sent_at: new Date().toISOString()\n    }\n  });\n  \n  console.log(`🚨 高风险告警: ${item.json.alert_id}`);\n}\n\nreturn results;"
+      },
+      "id": "high-risk-alert",
+      "name": "高风险告警",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 中风险异常 - 记录日志\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  results.push({\n    json: {\n      logged: true,\n      severity: 'medium',\n      data: item.json,\n      logged_at: new Date().toISOString()\n    }\n  });\n  \n  console.log(`⚠️  中风险异常: ${item.json.alert_id}`);\n}\n\nreturn results;"
+      },
+      "id": "medium-risk-log",
+      "name": "中风险日志",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 低风险异常 - 仅记录\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  results.push({\n    json: {\n      logged: true,\n      severity: 'low',\n      data: item.json,\n      logged_at: new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "low-risk-record",
+      "name": "低风险记录",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 正常数据处理\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  results.push({\n    json: {\n      status: 'normal',\n      data: item.json,\n      processed_at: new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "normal-processing",
+      "name": "正常数据处理",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 明确异常数据处理\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const errors = item.json._layer1_checks?.errors || [];\n  results.push({\n    json: {\n      status: 'rejected',\n      errors: errors,\n      data: item.json,\n      rejected_at: new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "reject-invalid",
+      "name": "拒绝无效数据",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "响应结果",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 200]
+    }
+  ],
+  "connections": {
+    "Webhook - 接收数据": {
+      "main": [
+        [
+          {
+            "node": "第1层检测 - 规则引擎",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "第1层检测 - 规则引擎": {
+      "main": [
+        [
+          {
+            "node": "第1层路由",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "第1层路由": {
+      "main": [
+        [
+          {
+            "node": "LLM检测路由",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "拒绝无效数据",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM检测路由": {
+      "main": [
+        [
+          {
+            "node": "第3层检测 - LLM分析",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "标记正常",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "第3层检测 - LLM分析": {
+      "main": [
+        [
+          {
+            "node": "异常路由",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "标记正常": {
+      "main": [
+        [
+          {
+            "node": "正常数据处理",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "异常路由": {
+      "main": [
+        [
+          {
+            "node": "异常分级",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "正常数据处理",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "异常分级": {
+      "main": [
+        [
+          {
+            "node": "高风险告警",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "中风险日志",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "低风险记录",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "高风险告警": {
+      "main": [
+        [
+          {
+            "node": "响应结果",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "中风险日志": {
+      "main": [
+        [
+          {
+            "node": "响应结果",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "低风险记录": {
+      "main": [
+        [
+          {
+            "node": "响应结果",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "正常数据处理": {
+      "main": [
+        [
+          {
+            "node": "响应结果",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "拒绝无效数据": {
+      "main": [
+        [
+          {
+            "node": "响应结果",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "instanceId": "ljwx-n8n"
+  },
+  "tags": [
+    {
+      "name": "AI编排",
+      "id": "1"
+    },
+    {
+      "name": "质量检测",
+      "id": "3"
+    }
+  ]
+}

@@ -1,0 +1,275 @@
+{
+  "name": "AI数据清洗与标准化工作流",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "data-ingest",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - 数据接入",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "data-cleaning-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Schema验证节点\nconst schema = {\n  required: ['timestamp', 'deviceId', 'data'],\n  properties: {\n    timestamp: { type: 'string' },\n    deviceId: { type: 'string' },\n    data: { type: 'object' }\n  }\n};\n\n// 简化的验证逻辑\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  let isValid = true;\n  let errors = [];\n  \n  // 检查必填字段\n  for (const field of schema.required) {\n    if (!data[field]) {\n      isValid = false;\n      errors.push(`缺少必填字段: ${field}`);\n    }\n  }\n  \n  results.push({\n    json: {\n      ...data,\n      _validation: {\n        status: isValid ? 'accepted' : 'rejected',\n        errors: errors,\n        timestamp: new Date().toISOString()\n      }\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "schema-validation",
+      "name": "Schema验证",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json._validation.status}}",
+              "value2": "accepted"
+            }
+          ]
+        }
+      },
+      "id": "validation-router",
+      "name": "验证路由",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 数据清洗节点 - 模拟LLM调用\nconst items = $input.all();\nconst cleaned = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // 模拟数据清洗逻辑\n  const cleanedData = {\n    timestamp: new Date(data.timestamp).toISOString(),\n    deviceId: data.deviceId.toUpperCase().trim(),\n    data: data.data,\n    _cleaning: {\n      changes: [],\n      confidence: 0.95,\n      method: 'rule-based',\n      processedAt: new Date().toISOString()\n    }\n  };\n  \n  // 记录清洗变更\n  if (data.timestamp !== cleanedData.timestamp) {\n    cleanedData._cleaning.changes.push({\n      field: 'timestamp',\n      from: data.timestamp,\n      to: cleanedData.timestamp,\n      reason: '标准化为ISO 8601格式'\n    });\n  }\n  \n  if (data.deviceId !== cleanedData.deviceId) {\n    cleanedData._cleaning.changes.push({\n      field: 'deviceId',\n      from: data.deviceId,\n      to: cleanedData.deviceId,\n      reason: '转大写并去除空格'\n    });\n  }\n  \n  cleaned.push({ json: cleanedData });\n}\n\nreturn cleaned;"
+      },
+      "id": "data-cleaning",
+      "name": "数据清洗",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 质量评分节点\nconst items = $input.all();\nconst scored = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // 计算质量分数\n  let score = 1.0;\n  \n  // 完整性检查 (25%)\n  const completeness = data.deviceId && data.timestamp && data.data ? 1.0 : 0.5;\n  \n  // 准确性检查 (35%) - 基于清洗置信度\n  const accuracy = data._cleaning?.confidence || 0.8;\n  \n  // 一致性检查 (20%)\n  const consistency = 1.0;\n  \n  // 置信度 (20%)\n  const confidence = data._cleaning?.confidence || 0.8;\n  \n  const qualityScore = (\n    completeness * 0.25 +\n    accuracy * 0.35 +\n    consistency * 0.20 +\n    confidence * 0.20\n  );\n  \n  scored.push({\n    json: {\n      ...data,\n      _quality: {\n        overall_score: qualityScore,\n        breakdown: {\n          completeness,\n          accuracy,\n          consistency,\n          confidence\n        },\n        need_review: qualityScore < 0.7,\n        review_reason: qualityScore < 0.7 ? '质量评分低于阈值' : null\n      }\n    }\n  });\n}\n\nreturn scored;"
+      },
+      "id": "quality-scoring",
+      "name": "质量评分",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json._quality.overall_score}}",
+              "operation": "larger",
+              "value2": 0.7
+            }
+          ]
+        }
+      },
+      "id": "quality-router",
+      "name": "质量路由",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 模拟数据库写入\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  results.push({\n    json: {\n      success: true,\n      message: '数据已保存到数据库',\n      data: item.json,\n      savedAt: new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "save-to-db",
+      "name": "保存到数据库",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 模拟推送到复核队列\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  results.push({\n    json: {\n      task_id: `review-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,\n      created_at: new Date().toISOString(),\n      data: {\n        original: item.json,\n        quality_score: item.json._quality?.overall_score,\n        review_reason: item.json._quality?.review_reason\n      },\n      status: 'pending'\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "review-queue",
+      "name": "推送复核队列",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 模拟错误日志记录\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  results.push({\n    json: {\n      error: true,\n      message: 'Schema验证失败',\n      data: item.json,\n      validation_errors: item.json._validation?.errors || [],\n      timestamp: new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "error-logging",
+      "name": "错误日志",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "响应成功",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "respond-error",
+      "name": "响应错误",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - 数据接入": {
+      "main": [
+        [
+          {
+            "node": "Schema验证",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schema验证": {
+      "main": [
+        [
+          {
+            "node": "验证路由",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "验证路由": {
+      "main": [
+        [
+          {
+            "node": "数据清洗",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "错误日志",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "数据清洗": {
+      "main": [
+        [
+          {
+            "node": "质量评分",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "质量评分": {
+      "main": [
+        [
+          {
+            "node": "质量路由",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "质量路由": {
+      "main": [
+        [
+          {
+            "node": "保存到数据库",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "推送复核队列",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "保存到数据库": {
+      "main": [
+        [
+          {
+            "node": "响应成功",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "错误日志": {
+      "main": [
+        [
+          {
+            "node": "响应错误",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "推送复核队列": {
+      "main": [
+        [
+          {
+            "node": "响应成功",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "instanceId": "ljwx-n8n"
+  },
+  "tags": [
+    {
+      "name": "AI编排",
+      "createdAt": "2026-01-24T00:00:00.000Z",
+      "updatedAt": "2026-01-24T00:00:00.000Z",
+      "id": "1"
+    },
+    {
+      "name": "数据清洗",
+      "createdAt": "2026-01-24T00:00:00.000Z",
+      "updatedAt": "2026-01-24T00:00:00.000Z",
+      "id": "2"
+    }
+  ]
+}
