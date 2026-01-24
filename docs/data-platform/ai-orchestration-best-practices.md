@@ -726,39 +726,43 @@ Webhook Trigger:
   - Method: POST
   - Authentication: Header Auth
   - Response: Immediately
+```
 
-# Schema验证节点
-Code Node - Validation:
-  ```javascript
-  // Schema定义
-  const schema = {
-    required: ['timestamp', 'deviceId', 'data'],
-    properties: {
-      timestamp: { type: 'string', format: 'date-time' },
-      deviceId: { type: 'string', pattern: '^[A-Z0-9]{10}$' },
-      data: { type: 'object' }
-    }
-  };
+**Schema验证节点**：
 
-  // 验证逻辑
-  const Ajv = require('ajv');
-  const ajv = new Ajv();
-  const validate = ajv.compile(schema);
-
-  for (const item of $input.all()) {
-    if (!validate(item.json)) {
-      // 记录验证失败
-      item.json._validation_error = validate.errors;
-      item.json._status = 'rejected';
-    } else {
-      item.json._status = 'accepted';
-    }
+```javascript
+// Code Node - Validation
+// Schema定义
+const schema = {
+  required: ['timestamp', 'deviceId', 'data'],
+  properties: {
+    timestamp: { type: 'string', format: 'date-time' },
+    deviceId: { type: 'string', pattern: '^[A-Z0-9]{10}$' },
+    data: { type: 'object' }
   }
+};
 
-  return $input.all();
-  ```
+// 验证逻辑
+const Ajv = require('ajv');
+const ajv = new Ajv();
+const validate = ajv.compile(schema);
 
-# 路由节点
+for (const item of $input.all()) {
+  if (!validate(item.json)) {
+    // 记录验证失败
+    item.json._validation_error = validate.errors;
+    item.json._status = 'rejected';
+  } else {
+    item.json._status = 'accepted';
+  }
+}
+
+return $input.all();
+```
+
+**路由节点**：
+
+```yaml
 Switch Node:
   - Mode: Rules
   - Rules:
