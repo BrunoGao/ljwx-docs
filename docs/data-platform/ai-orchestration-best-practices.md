@@ -762,8 +762,8 @@ Code Node - Validation:
 Switch Node:
   - Mode: Rules
   - Rules:
-      - If: {{ $json._status === 'accepted' }} → 继续处理
-      - Else: {{ $json._status === 'rejected' }} → 记录错误日志
+      - If: \{\{ $json._status === 'accepted' \}\} → 继续处理
+      - Else: \{\{ $json._status === 'rejected' \}\} → 记录错误日志
 ```
 
 #### 质量指标
@@ -895,9 +895,9 @@ HTTP Request Node:
   - URL: http://dify-server/v1/chat-messages
   - Body:
       inputs:
-        source_schema: {{ $json.source_schema }}
-        target_schema: {{ $json.target_schema }}
-        sample_data: {{ $json.sample_data }}
+        source_schema: \{\{ $json.source_schema \}\}
+        target_schema: \{\{ $json.target_schema \}\}
+        sample_data: \{\{ $json.sample_data \}\}
       response_mode: blocking
 ```
 
@@ -1820,9 +1820,9 @@ Few-shot示例:
   - POST /v1/chat-messages
   - Body:
       inputs:
-        source_schema: {{ $json.source_schema }}
-        target_schema: {{ $json.target_schema }}
-        sample_data: {{ $json.sample_data }}
+        source_schema: \{\{ $json.source_schema \}\}
+        target_schema: \{\{ $json.target_schema \}\}
+        sample_data: \{\{ $json.sample_data \}\}
 
 节点3 - 解析映射结果:
   - 提取mappings数组
@@ -2182,11 +2182,11 @@ Workflow名称：DocumentParsingWorkflow
     """
     请从以下文档片段中抽取关键信息：
 
-    文档类型：{{document_type}}
-    抽取目标：{{extraction_schema}}
+    文档类型：\{\{document_type\}\}
+    抽取目标：\{\{extraction_schema\}\}
 
     文档内容：
-    {{chunk_content}}
+    \{\{chunk_content\}\}
 
     返回JSON格式：
     {
