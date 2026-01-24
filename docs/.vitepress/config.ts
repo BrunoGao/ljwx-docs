@@ -35,7 +35,8 @@ export default withMermaid(defineConfig({
             text: '数据平台',
             items: [
               { text: '数据平台概览', link: '/data-platform/' },
-              { text: '数据分析最佳实践', link: '/data-platform/data-analysis-best-practices' }
+              { text: '数据分析最佳实践', link: '/data-platform/data-analysis-best-practices' },
+              { text: 'AI编排方法论与实践', link: '/data-platform/ai-orchestration-best-practices' }
             ]
           },
           {
@@ -98,11 +99,21 @@ export default withMermaid(defineConfig({
               text: '数据平台',
               items: [
                 { text: '概览', link: '/data-platform/' },
-                { text: '数据分析最佳实践', link: '/data-platform/data-analysis-best-practices' }
+                { text: '数据分析最佳实践', link: '/data-platform/data-analysis-best-practices' },
+                { text: 'AI编排方法论与实践', link: '/data-platform/ai-orchestration-best-practices' }
               ]
             },
             {
-              text: '核心能力',
+              text: 'AI编排能力',
+              items: [
+                { text: '工具选型 (n8n vs Dify)', link: '/data-platform/ai-orchestration-best-practices#工具选型n8n-vs-dify' },
+                { text: '五层AI编排架构', link: '/data-platform/ai-orchestration-best-practices#总体架构五层ai编排' },
+                { text: '实践案例', link: '/data-platform/ai-orchestration-best-practices#数据处理场景实践案例' },
+                { text: '工程化能力', link: '/data-platform/ai-orchestration-best-practices#工程化能力' }
+              ]
+            },
+            {
+              text: '数据处理能力',
               items: [
                 { text: '数据治理', link: '/data-platform/data-analysis-best-practices#第23-25页-数据治理详解' },
                 { text: '数据处理', link: '/data-platform/data-analysis-best-practices#第10页-总体架构五层数据处理精简版' },
@@ -112,7 +123,9 @@ export default withMermaid(defineConfig({
             {
               text: '技术指南',
               items: [
-                { text: 'FAQ', link: '/data-platform/data-analysis-best-practices#第36页-常见问题解答faq' },
+                { text: 'AI编排 FAQ', link: '/data-platform/ai-orchestration-best-practices#常见问题解答faq' },
+                { text: 'AI编排最佳实践', link: '/data-platform/ai-orchestration-best-practices#最佳实践总结' },
+                { text: '数据处理 FAQ', link: '/data-platform/data-analysis-best-practices#第36页-常见问题解答faq' },
                 { text: '技术决策', link: '/data-platform/data-analysis-best-practices#第37页-技术决策指南' },
                 { text: '实施路线图', link: '/data-platform/data-analysis-best-practices#第38页-实施路线图' }
               ]
