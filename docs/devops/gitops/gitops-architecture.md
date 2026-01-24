@@ -180,13 +180,15 @@ graph TB
 
     subgraph "GitOps Control Plane"
         GitOpsRepo -->|5. Watch Changes| ArgoCD[Argo CD<br/>GitOps 引擎]
-        Harbor -->|6. Pull Image| ArgoCD
     end
 
     subgraph "Kubernetes Clusters"
-        ArgoCD -->|7. Deploy| DevCluster[开发集群]
-        ArgoCD -->|8. Deploy| TestCluster[测试集群]
-        ArgoCD -->|9. Deploy| ProdCluster[生产集群]
+        ArgoCD -->|6. Deploy Manifests| DevCluster[开发集群]
+        ArgoCD -->|7. Deploy Manifests| TestCluster[测试集群]
+        ArgoCD -->|8. Deploy Manifests| ProdCluster[生产集群]
+        Harbor -->|9. Image Pull| DevCluster
+        Harbor -->|10. Image Pull| TestCluster
+        Harbor -->|11. Image Pull| ProdCluster
     end
 
     subgraph "可观测性"
@@ -216,6 +218,56 @@ graph TB
 5. **观测层** - 监控、日志、追踪（Prometheus/Loki/Grafana）
 
 每一层都有明确的职责边界和 SLA 要求。
+
+**关键说明**：
+- **Argo CD 职责**：将 GitOps 仓库中的声明式配置（Manifests）应用到集群，不直接参与镜像拉取
+- **镜像拉取**：由 Kubernetes 集群节点的 kubelet/container runtime 从 Harbor 拉取镜像
+- **Harbor 角色**：镜像存储、扫描、签名验证的供应链组件，而非 GitOps 控制面的一部分
+
+---
+
+## ✅ 架构决策总览（本篇核心结论）
+
+在深入技术细节前，先看我们的**关键架构决策**：
+
+### 核心决策摘要
+
+| 决策维度 | 我们的选择 | 关键理由 |
+|---------|-----------|---------|
+| **工具栈** | Gitea + Harbor + Argo CD | 私有化友好、资源可控、成本低、企业级能力完整 |
+| **仓库策略** | 混合模式 | 基础设施独立仓库 + 应用按业务线拆分（每仓库<10应用）|
+| **环境隔离** | 分层策略 | Dev/Test 命名空间隔离；Prod 独立集群 + 主备 |
+| **配置管理** | Kustomize + Helm | 自研应用用 Kustomize（透明）；三方应用用 Helm（复用）|
+| **变更控制** | Git 唯一来源 | 禁止 kubectl apply；所有变更通过 PR + 审批 |
+| **安全策略** | 四层防护 | RBAC + Secret 管理（ESO）+ 镜像准入 + 网络隔离 |
+| **灾备策略** | 明确 RTO | Git/Argo 配置备份 + 定期演练（RTO < 2h）|
+| **可观测性** | 核心指标 | 同步/健康/漂移/部署频率作为关键度量 |
+
+### 为什么这些决策重要？
+
+::: tip 决策逻辑
+这套架构决策基于我们在 **5个项目、20+应用、8+集群** 上的实践经验，解决了三大核心问题：
+
+1. **私有化约束** - 资源受限、内网环境、无法使用云服务
+2. **合规要求** - 完整审计、变更可追溯、配置可回滚
+3. **规模化挑战** - 多环境、多集群、多团队协作
+
+这不是"最佳实践"，而是"在我们约束条件下的最优解"。
+:::
+
+### 决策适用边界
+
+**适用场景**：
+- ✅ 15-50人团队，10-50个应用
+- ✅ 私有化部署，资源中等（非边缘计算场景）
+- ✅ 多环境（至少 Dev/Test/Prod 三环境）
+- ✅ 有合规审计要求
+
+**不适用场景**：
+- ❌ 单应用、单环境（过度设计）
+- ❌ 极端资源受限（边缘计算、IoT）
+- ❌ 云原生 SaaS（可直接用云服务）
+- ❌ 超大规模（>100应用需要更复杂治理）
 
 ---
 
@@ -281,15 +333,63 @@ graph TB
 
 ---
 
+### 原则到架构设计的映射
+
+下表总结了 GitOps 四大原则如何落地到我们的架构设计中：
+
+| GitOps 原则 | 架构设计决策 | 实现机制/组件 | 常见反例（需避免）|
+|------------|------------|--------------|-----------------|
+| **Declarative<br/>声明式** | • 所有资源用 YAML 声明<br/>• Kustomize/Helm 管理配置<br/>• 禁止命令式操作 | • Kustomize overlays<br/>• Helm charts<br/>• Kubernetes API | ❌ kubectl edit 改配置<br/>❌ 脚本生成后直接 apply<br/>❌ 配置存 ConfigMap/DB |
+| **SSoT<br/>Git 唯一来源** | • Git 是唯一权威来源<br/>• 所有变更通过 Git<br/>• 完整审计追踪 | • Gitea 仓库<br/>• PR + 审批流程<br/>• Git 历史 = 审计日志 | ❌ Git + kubectl 混用<br/>❌ 配置多个来源<br/>❌ 手动修改生产环境 |
+| **Automated<br/>自动化** | • Git 提交自动触发部署<br/>• CI 自动更新镜像标签<br/>• 零人工点击 | • Argo CD auto-sync<br/>• Webhook 触发<br/>• CI 自动更新 GitOps 仓库 | ❌ 手动点 Sync 按钮<br/>❌ CI 后人工更新仓库<br/>❌ SSH 执行部署脚本 |
+| **Reconcile<br/>持续对账** | • 每 3 分钟对账一次<br/>• 自动检测配置漂移<br/>• Self-Healing 修复 | • Argo CD reconciliation loop<br/>• Drift detection<br/>• Auto-healing policy | ❌ 只在部署时检查<br/>❌ 漂移后不自动修复<br/>❌ 依赖人工介入 |
+
+**关键洞察**：
+- **原则 ≠ 教条**：不同场景需要不同权衡（如紧急变更流程）
+- **技术只是手段**：核心是建立"可审计、可回滚、可规模化"的治理模型
+- **渐进式落地**：先保证 SSoT，再逐步完善自动化和对账
+
+---
+
 ## 💡 技术选型：为什么选择这套技术栈
 
-我们的技术栈：**Gitea + Harbor + Argo CD**
+### 选型框架
+
+在具体选型前，先明确我们的**输入约束**和**输出标准**：
+
+#### 输入约束（我们的限制条件）
+
+| 约束类型 | 具体要求 |
+|---------|---------|
+| **部署环境** | 私有化、内网隔离、无法访问公网 |
+| **资源限制** | 中等规模集群（非边缘计算），成本敏感 |
+| **合规要求** | 完整审计日志、变更可追溯、数据不出境 |
+| **团队能力** | 15人团队，DevOps 能力中等，学习成本敏感 |
+| **技术栈** | Kubernetes 1.28+、已有 PostgreSQL/Redis |
+| **可选项** | 开源优先、避免厂商锁定、支持国产化适配 |
+
+#### 输出标准（选型必须满足的目标）
+
+| 标准类型 | 目标值 |
+|---------|--------|
+| **可用性（SLA）** | GitOps 控制面 > 99.9%（月度）|
+| **审计完整性** | 100% 变更可追溯到 Git commit |
+| **权限粒度** | 支持团队/角色/环境三维隔离 |
+| **灾备能力** | RTO < 2h，RPO < 15min |
+| **可观测性** | 核心指标（同步/健康/漂移）完整暴露 |
+| **学习成本** | 新人上手 < 1 周，有 UI 降低门槛 |
+
+### 我们的选择：Gitea + Harbor + Argo CD
+
+基于上述约束和标准，我们选择了这套技术栈。
+
+---
 
 ### 为什么选择 Gitea？
 
 | 需求 | 传统方案 | Gitea | 说明 |
 |------|---------|-------|------|
-| 私有化部署 | GitLab（资源占用高）| ✅ 轻量级（<100MB 内存）| 单节点即可运行 |
+| 私有化部署 | GitLab（资源占用高）| ✅ 轻量级（低量级）| 单节点即可运行，典型<200MB（依赖DB/对象存储）|
 | 多租户隔离 | GitHub Enterprise | ✅ 原生支持组织/团队 | 满足企业需求 |
 | CI/CD 集成 | Jenkins + GitLab | ✅ Gitea Actions（内置）| 无需额外组件 |
 | 审计日志 | 需要额外配置 | ✅ 完整 Git 历史 + Webhook | 满足合规要求 |
@@ -344,7 +444,11 @@ graph TB
 | **RBAC** | ✅ 原生 SSO/RBAC | ⚠️ 依赖 Kubernetes RBAC |
 | **社区** | ✅ CNCF 毕业项目（2022）| ✅ CNCF 毕业项目（2022）|
 | **学习曲线** | ⚠️ 中等（UI 降低门槛）| 🔴 陡峭（纯代码）|
-| **资源占用** | ⚠️ 中等（~500MB）| ✅ 低（~200MB）|
+| **资源占用** | ⚠️ 中等量级 | ✅ 低量级 |
+
+**资源占用说明**：
+- **Argo CD**：基础部署 ~300-500MB，启用 HA/Redis/Dex/多 Repo Server 后会显著上升至 1GB+
+- **Flux CD**：基础部署 ~100-200MB，多 Controller 模式下也会增加
 
 **我们的选择**：Argo CD
 - 团队需要 UI 降低上手门槛
@@ -636,13 +740,180 @@ data:
     └── 权限：Read（只读审计）
 ```
 
+---
+
+### Argo CD AppProject 隔离（关键安全机制）
+
+::: warning 关键安全层
+AppProject 是 Argo CD 的核心安全边界，比 RBAC 更细粒度地控制应用部署范围。
+:::
+
+#### AppProject 配置示例
+
+```yaml
+# 生产环境 Project：严格限制
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: production
+  namespace: argocd
+spec:
+  description: 生产环境应用
+
+  # 限制源仓库
+  sourceRepos:
+    - http://gitea.ljwx.local/ops/gitops-prod.git
+
+  # 限制目标集群和命名空间
+  destinations:
+    - namespace: 'prod-*'  # 只能部署到 prod- 开头的命名空间
+      server: https://prod-cluster.ljwx.local:6443
+
+  # 限制可部署的资源类型
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: 'apps'
+      kind: Deployment
+    - group: ''
+      kind: Service
+    - group: ''
+      kind: ConfigMap
+
+  # 禁止的资源（额外黑名单）
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota  # 禁止修改资源配额
+
+  # 同步窗口：生产环境只在维护窗口允许同步
+  syncWindows:
+    - kind: allow
+      schedule: '0 2 * * 0'  # 每周日凌晨 2 点
+      duration: 2h
+      applications:
+        - '*'
+    - kind: deny
+      schedule: '* * * * *'  # 其他时间禁止
+      duration: 24h
+      applications:
+        - '*'
+```
+
+#### AppProject 安全边界表
+
+| 控制维度 | 开发环境 Project | 测试环境 Project | 生产环境 Project |
+|---------|----------------|----------------|----------------|
+| **源仓库** | gitops-dev.git | gitops-test.git | gitops-prod.git |
+| **目标集群** | dev-cluster | test-cluster | prod-cluster（主+备）|
+| **命名空间** | dev-* | test-* | prod-* |
+| **资源白名单** | 所有资源 | 常用资源 | 严格白名单 |
+| **同步窗口** | 7×24 | 工作时间 | 维护窗口 |
+| **审批要求** | 无 | DevOps 审批 | 双人审批 |
+
+---
+
+### 变更治理：从提交到上线的完整流程
+
+#### Git 分支策略
+
+我们使用 **GitFlow 简化版**：
+
+```mermaid
+graph LR
+    Feature[feature/*] -->|PR + Review| Main[main]
+    Main -->|Tag| Release[release/v*]
+    Release -->|Hotfix| Hotfix[hotfix/*]
+    Hotfix -->|PR| Main
+
+    style Main fill:#10b981,color:#fff
+    style Release fill:#3451b2,color:#fff
+    style Hotfix fill:#ef4444,color:#fff
+```
+
+#### 变更流程
+
+| 环境 | 分支 | 变更流程 | 审批要求 |
+|------|------|---------|---------|
+| **开发** | main | 直接提交 | 无 |
+| **测试** | main | PR + CI | DevOps 审批 |
+| **生产** | release/v* | PR + CI + 人工验证 | 双人审批 + CODEOWNERS |
+
+#### CODEOWNERS 配置
+
+```bash
+# .github/CODEOWNERS
+# 生产环境变更必须由 DevOps 团队审批
+/gitops-prod/**  @ljwx/devops-team
+
+# 基础设施变更必须由架构师审批
+/gitops-infrastructure/**  @ljwx/architects
+
+# 安全相关配置必须由安全团队审批
+**/network-policy.yaml  @ljwx/security-team
+**/rbac.yaml  @ljwx/security-team
+```
+
+#### 生产变更冻结窗口
+
+```yaml
+# Argo CD Sync Window：生产冻结
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: production
+spec:
+  syncWindows:
+    # 冻结窗口：节假日/重大活动期间禁止变更
+    - kind: deny
+      schedule: '0 0 1 1 *'      # 元旦
+      duration: 72h
+    - kind: deny
+      schedule: '0 0 1 10 *'     # 国庆
+      duration: 168h             # 7天
+    # 维护窗口：每周日凌晨
+    - kind: allow
+      schedule: '0 2 * * 0'
+      duration: 2h
+```
+
+#### 紧急变更流程（Break-Glass）
+
+当生产故障需要紧急修复时：
+
+1. **申请临时权限**：通过工单系统申请
+2. **临时开启 Sync**：手动调整 SyncWindow
+3. **变更并记录**：Git commit 必须包含工单号
+4. **事后审计**：24小时内补充完整 PR 和审批
+
+```yaml
+# 紧急变更标记（在 commit message 中）
+fix: 紧急修复生产数据库连接问题
+
+Emergency-Change: INC-2024-001
+Approved-By: @架构师 @运维主管
+Reason: 生产数据库连接池耗尽，影响 80% 用户
+Rollback-Plan: Git revert + Argo sync
+```
+
+---
+
 ### 安全最佳实践
 
 #### 1. 敏感信息管理
 
 **问题**：GitOps 配置存储在 Git，如何保护敏感信息？
 
-**方案**：使用 Sealed Secrets 或 External Secrets
+**方案对比**：
+
+| 方案 | 存储方式 | 适用场景 | 风险 |
+|------|---------|---------|------|
+| **Sealed Secrets** | Git 中存加密密文 | 简单场景，小团队 | 密钥在集群内，控制面泄漏风险 |
+| **External Secrets** | Git 中存引用 | 企业合规要求 | Secret 来自 Vault/云 KMS，更安全 |
+
+**方案 1：Sealed Secrets**
+
+适合：Git 中存放加密后的密文，密钥在集群内管理
 
 ```yaml
 # 使用 Sealed Secrets
@@ -663,37 +934,94 @@ spec:
 3. Argo CD 部署到集群
 4. Sealed Secrets Controller 解密为 Secret
 
-#### 2. 镜像签名验证
+**方案 2：External Secrets Operator**
 
-使用 Harbor + Cosign 实现镜像供应链安全：
+适合：企业合规场景，Secret 存储在外部系统（Vault/云 KMS）
 
 ```yaml
-# Argo CD 镜像验证策略
-apiVersion: argoproj.io/v1alpha1
-kind: Application
+# Git 中只存引用
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
 metadata:
-  name: myapp
+  name: mysecret
+  namespace: myapp
 spec:
-  source:
-    repoURL: http://gitea.ljwx.local/ops/myapp-gitops.git
-    targetRevision: main
-    path: overlays/prod
-  # 镜像验证
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - PruneLast=true
-      - ApplyOutOfSyncOnly=true
-    # 镜像验证策略
-    imageVerification:
-      enabled: true
-      keyless: false
-      keys:
-        - kms://cosign-key # Cosign 签名密钥
+  secretStoreRef:
+    name: vault-backend
+    kind: SecretStore
+  target:
+    name: mysecret
+  data:
+    - secretKey: password
+      remoteRef:
+        key: myapp/prod/db-password
 ```
+
+**推荐**：企业级私有化场景选择 External Secrets Operator
+
+#### 2. 镜像签名验证
+
+**完整方案**：Harbor 产出签名 + Kubernetes 准入控制验证
+
+**流程说明**：
+1. **CI 阶段**：Harbor 使用 Cosign 对镜像签名
+2. **准入控制**：Kubernetes 集群使用 Kyverno/Gatekeeper 验证镜像签名
+3. **GitOps 部署**：Argo CD 只负责应用 Manifests，不直接做镜像验证
+
+**方案 1：使用 Kyverno 策略验证**
+
+```yaml
+# Kyverno ClusterPolicy：拒绝未签名镜像
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signature
+spec:
+  validationFailureAction: enforce
+  background: false
+  rules:
+    - name: verify-signature
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      verifyImages:
+        - imageReferences:
+            - "harbor.ljwx.local/*"
+          attestors:
+            - count: 1
+              entries:
+                - keys:
+                    publicKeys: |-
+                      -----BEGIN PUBLIC KEY-----
+                      <Cosign 公钥>
+                      -----END PUBLIC KEY-----
+```
+
+**方案 2：使用 Gatekeeper + Ratify**
+
+```yaml
+# Gatekeeper ConstraintTemplate
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: verifyimagesignature
+spec:
+  crd:
+    spec:
+      names:
+        kind: VerifyImageSignature
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package verifyimagesignature
+        violation[{"msg": msg}] {
+          # Ratify 验证逻辑
+        }
+```
+
+**推荐**：私有化环境使用 Kyverno（配置更直观）
 
 #### 3. 网络隔离
 
