@@ -36,7 +36,8 @@ export default withMermaid(defineConfig({
             items: [
               { text: '数据平台概览', link: '/data-platform/' },
               { text: '数据分析最佳实践', link: '/data-platform/data-analysis-best-practices' },
-              { text: 'AI编排方法论与实践', link: '/data-platform/ai-orchestration-best-practices' }
+              { text: 'AI编排方法论与实践', link: '/data-platform/ai-orchestration-best-practices' },
+              { text: '数据资产化系列', link: '/data-platform/data-assetization/' }
             ]
           },
           {
@@ -128,6 +129,39 @@ export default withMermaid(defineConfig({
                 { text: '数据处理 FAQ', link: '/data-platform/data-analysis-best-practices#第36页-常见问题解答faq' },
                 { text: '技术决策', link: '/data-platform/data-analysis-best-practices#第37页-技术决策指南' },
                 { text: '实施路线图', link: '/data-platform/data-analysis-best-practices#第38页-实施路线图' }
+              ]
+            }
+          ],
+          '/data-platform/data-assetization/': [
+            {
+              text: '数据资产化系列',
+              items: [
+                { text: '系列概览', link: '/data-platform/data-assetization/' },
+                { text: '理念篇', link: '/data-platform/data-assetization/why-data-assetization' },
+                { text: '方法论篇', link: '/data-platform/data-assetization/data-assetization-methodology' }
+              ]
+            },
+            {
+              text: '核心技术能力',
+              items: [
+                { text: '数据清洗与质量保障', link: '/data-platform/data-assetization/data-cleaning-and-quality' },
+                { text: '数据合规与安全', link: '/data-platform/data-assetization/data-compliance-and-security' },
+                { text: '数据估值与定价', link: '/data-platform/data-assetization/data-valuation-and-pricing' },
+                { text: '数据权属与证据链', link: '/data-platform/data-assetization/data-ownership-and-provenance' }
+              ]
+            },
+            {
+              text: '交易与实施',
+              items: [
+                { text: '数据交易与安全交付', link: '/data-platform/data-assetization/data-trading-and-delivery' },
+                { text: '实施指南', link: '/data-platform/data-assetization/data-assetization-implementation' },
+                { text: '案例集', link: '/data-platform/data-assetization/data-assetization-cases' }
+              ]
+            },
+            {
+              text: '附录',
+              items: [
+                { text: '统一材料包模板集', link: '/data-platform/data-assetization/data-assetization-audit-pack' }
               ]
             }
           ]
