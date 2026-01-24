@@ -32,6 +32,13 @@ export default withMermaid(defineConfig({
             ]
           },
           {
+            text: '数据平台',
+            items: [
+              { text: '数据平台概览', link: '/data-platform/' },
+              { text: '数据分析最佳实践', link: '/data-platform/data-analysis-best-practices' }
+            ]
+          },
+          {
             text: '数据分析',
             items: [
               { text: 'n8n 自动化', link: '/data-analytics/n8n/' },
@@ -83,6 +90,31 @@ export default withMermaid(defineConfig({
                 { text: '使用指南', link: '/knowledge-asset-usage-guide' },
                 { text: 'Dify 同步指南', link: '/dify-knowledge-sync-guide' },
                 { text: '快速参考', link: '/QUICK-REFERENCE' }
+              ]
+            }
+          ],
+          '/data-platform/': [
+            {
+              text: '数据平台',
+              items: [
+                { text: '概览', link: '/data-platform/' },
+                { text: '数据分析最佳实践', link: '/data-platform/data-analysis-best-practices' }
+              ]
+            },
+            {
+              text: '核心能力',
+              items: [
+                { text: '数据治理', link: '/data-platform/data-analysis-best-practices#第23-25页-数据治理详解' },
+                { text: '数据处理', link: '/data-platform/data-analysis-best-practices#第10页-总体架构五层数据处理精简版' },
+                { text: '质量管理', link: '/data-platform/data-analysis-best-practices#第23页质量管理体系' }
+              ]
+            },
+            {
+              text: '技术指南',
+              items: [
+                { text: 'FAQ', link: '/data-platform/data-analysis-best-practices#第36页-常见问题解答faq' },
+                { text: '技术决策', link: '/data-platform/data-analysis-best-practices#第37页-技术决策指南' },
+                { text: '实施路线图', link: '/data-platform/data-analysis-best-practices#第38页-实施路线图' }
               ]
             }
           ]
