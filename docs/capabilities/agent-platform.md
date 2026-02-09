@@ -129,6 +129,107 @@ Step 3: 销售审核并润色（5-10分钟）
 - 成本区间（基于历史项目数据）
 - 风险项标注（如"假设现有系统可集成"）
 
+### 多Profile切换与隔离机制
+
+虽然平台支持多种业务场景（售前、运维、康养、园区管理），但**技术上采用严格的域隔离设计**，确保不同Profile之间互不干扰。
+
+#### Profile定义结构
+
+```yaml
+Profile = Policy + Toolset + Knowledge Domain + Prompt
+
+售前Profile示例：
+  system_prompt: "你是售前方案助手，帮助销售生成客户方案..."
+  allowed_tools:
+    - qichacha_api
+    - document_search(domain=sales_knowledge)
+    - generate_word
+  knowledge_domain: "sales_knowledge"  # 只能检索售前知识库
+  data_scope: ["customer_basic", "solution_cases"]  # 只能访问客户基本信息和方案案例
+  output_restrictions:
+    - no_realtime_data  # 禁止输出实时运维数据
+    - no_patient_info  # 禁止输出患者信息
+
+运维Profile示例：
+  system_prompt: "你是安全运维助手，帮助分析安全事件..."
+  allowed_tools:
+    - query_logs
+    - security_analysis
+    - create_ticket
+  knowledge_domain: "security_ops"
+  data_scope: ["security_logs", "threat_intelligence"]
+  output_restrictions:
+    - no_customer_contact  # 禁止输出客户联系方式
+```
+
+#### 隔离机制
+
+**1. 工具集隔离**：
+- 售前Profile无法调用运维工具（如`isolate_host`、`execute_sql`）
+- 运维Profile无法调用商务工具（如`qichacha_api`、`export_customer_data`）
+- 违规调用会被拦截：`DENY: 角色'售前专员'无权调用工具'isolate_host'`
+
+**2. 知识库隔离**：
+```python
+# RAG检索时自动添加域过滤
+def search_documents(query, user_profile):
+    allowed_domain = user_profile.knowledge_domain
+
+    results = vector_db.search(
+        query=query,
+        filters={"domain": allowed_domain}  # 只检索当前域的文档
+    )
+
+    # 售前Profile：只能检索sales_knowledge域的文档
+    # 运维Profile：只能检索security_ops域的文档
+    # 跨域检索被自动过滤
+```
+
+**3. 数据访问隔离（行级+列级）**：
+- **行级权限**：售前人员只能查询本部门客户，运维人员只能查询安全日志
+- **列级权限**：不同角色看到的数据字段不同（脱敏/隐藏敏感列）
+
+**4. 合规域标注**：
+对于康养场景（涉及患者隐私），系统设置**合规域（Compliance Zone）**标记：
+```yaml
+康养Profile（合规域）：
+  compliance_level: "healthcare_privacy"  # HIPAA/个人信息保护法
+  mandatory_controls:
+    - 患者数据必须脱敏
+    - 禁止输出姓名+病历的组合
+    - 所有查询记录留痕备查
+  data_retention: 3年（符合医疗数据留存要求）
+```
+
+#### 切换Profile的技术实现
+
+用户通过界面选择Profile时，系统后端执行：
+```python
+def switch_profile(user, target_profile):
+    # 1. 验证用户是否有权限使用该Profile
+    if target_profile not in user.allowed_profiles:
+        return DENY, "您无权访问该Profile"
+
+    # 2. 加载Profile配置
+    config = load_profile_config(target_profile)
+
+    # 3. 初始化会话上下文
+    session = Session(
+        user=user,
+        system_prompt=config.system_prompt,
+        allowed_tools=config.allowed_tools,
+        knowledge_domain=config.knowledge_domain,
+        data_scope=config.data_scope
+    )
+
+    # 4. 清空上一个Profile的上下文（防止信息泄露）
+    clear_previous_context()
+
+    return session
+```
+
+**关键设计原则**：**默认隔离、显式授权、最小权限**
+
 ---
 
 ## 4. 核心技术：Ask → Plan → Act → Verify → Report 闭环
@@ -259,20 +360,299 @@ steps:
 - 字段级：客户手机号脱敏显示（138****1234）
 ```
 
-#### 2. 审批与双人复核
-```
-操作风险分级：
-- 只读操作：无需审批（查询客户信息、检索文档）
-- 通知操作：需审批（发送邮件、创建工单）
-- 写入操作：需双人确认（更新客户状态、修改配置）
-- 破坏性操作：需主管审批+二次确认（封禁IP、删除数据）
+#### 2. 工具治理（Tool Registry）
 
-审批流程：
-售前生成方案 → 自动执行（无需审批）
-运维封禁IP → 展示"将封禁IP 1.2.3.4，是否确认？" → 审批通过 → 执行
+**核心理念**：所有工具都必须注册、声明能力边界、接受管控，才能被Agent调用。
+
+##### 2.1 工具注册表（Tool Registry Schema）
+
+每个工具在平台注册时必须声明：
+
+```yaml
+工具元数据（Metadata）：
+  name: "qichacha_api"  # 工具唯一标识
+  version: "v1.2"  # 版本号（支持多版本共存）
+  category: "external_api"  # 工具分类
+
+输入输出定义（I/O Schema）：
+  input_schema:  # JSON Schema格式
+    type: object
+    required: [company_name]
+    properties:
+      company_name: {type: string, minLength: 2}
+
+  output_schema:
+    type: object
+    properties:
+      company_info: {type: object}
+      timestamp: {type: string}
+
+执行特性（Execution Properties）：
+  timeout: 5000  # 超时时间（ms）
+  retry_policy:
+    max_retries: 3
+    backoff: exponential
+  idempotent: true  # 幂等性
+
+成本与配额（Cost & Quota）：
+  cost_per_call: 0.10  # 单次调用成本（元）
+  quota_limit: 1000  # 每日调用上限
+
+安全属性（Security Attributes）：
+  risk_level: "medium"  # low/medium/high/destructive
+  data_access: ["customer_basic_info"]
+  required_permissions: ["external_api.read"]
+  external_network: true  # 是否访问外网
+  state_mutating: false  # 是否修改系统状态
+
+审计要求（Audit Requirements）：
+  log_level: "info"
+  record_params: true
+  record_output: true
+  retention_days: 90
 ```
 
-#### 3. 安全防护（对抗威胁）
+##### 2.2 工具白名单机制
+
+```yaml
+售前专员:
+  allowed_tools:
+    - qichacha_api
+    - document_search
+    - generate_word
+    - send_email  # 需审批
+
+  denied_tools:
+    - execute_sql
+    - delete_data
+    - server_restart
+
+运维人员:
+  allowed_tools:
+    - query_logs
+    - server_status
+    - execute_sql  # 只读
+    - isolate_host  # 需审批
+
+  denied_tools:
+    - send_external_email
+    - export_customer_data
+```
+
+##### 2.3 工具调用前鉴权
+
+**三层检查机制**：
+```python
+def authorize_tool_call(user, tool_name, params):
+    # 第1层：白名单检查
+    if tool_name not in get_user_allowed_tools(user.role):
+        return DENY, f"角色{user.role}无权调用{tool_name}"
+
+    # 第2层：参数校验
+    if tool_name == "execute_sql":
+        if is_destructive_sql(params['query']):
+            if user.role != "dba":
+                return DENY, "非DBA禁止执行破坏性SQL"
+
+    # 第3层：数据范围权限
+    if tool_name == "query_customer":
+        allowed_depts = get_user_data_scope(user)
+        if params['department'] not in allowed_depts:
+            return DENY, "无权访问该部门数据"
+
+    return ALLOW
+```
+
+##### 2.4 幂等性保证
+
+**问题场景**：
+```
+Agent调用：send_email(...)
+网络超时，重试 → 用户收到2封邮件（❌）
+```
+
+**解决方案**：
+```python
+def call_tool_idempotent(tool_name, params, run_id, step_id):
+    # 生成幂等性Key
+    key = hash(tool_name + json.dumps(params) + run_id + step_id)
+
+    # 检查缓存
+    if cache.exists(key):
+        return cache.get(key)  # 返回缓存结果
+
+    # 执行工具
+    result = execute_tool(tool_name, params)
+
+    # 缓存结果（TTL=24h）
+    cache.set(key, result, ttl=86400)
+    return result
+```
+
+**支持幂等的工具**：
+| 工具类型 | 幂等性 | 实现方式 |
+|---------|--------|---------|
+| 查询类 | 天然幂等 | 无需特殊处理 |
+| 文件生成 | 需保证 | 文件名包含hash |
+| 发送通知 | 需保证 | idempotency_key去重 |
+| 数据写入 | 需保证 | 数据库unique约束 |
+| 破坏性操作 | 禁止重试 | non-retriable标记 |
+
+---
+
+#### 3. 策略引擎（Policy Engine + 审批门禁）
+
+**核心理念**：Agent的每一个动作都要经过策略检查，写操作必须经过审批，高风险操作必须有回滚预案。
+
+##### 3.1 策略定义语言（Policy DSL）
+
+```yaml
+策略示例1：外发邮件需审批
+policy:
+  name: "external_email_requires_approval"
+  condition:
+    tool: "send_email"
+    params.recipient: !in_domain("company.com")
+  action:
+    require_approval: true
+    approver_role: ["manager"]
+    timeout: 3600
+
+策略示例2：禁止生产环境破坏性操作
+policy:
+  name: "no_destructive_ops_in_prod"
+  condition:
+    environment: "production"
+    tool.risk_level: "destructive"
+  action:
+    deny: true
+    reason: "生产环境禁止破坏性操作"
+
+策略示例3：成本控制
+policy:
+  name: "cost_quota_per_user"
+  condition:
+    user.daily_cost: > 100.0
+  action:
+    require_approval: true
+    notification: "用户{user}今日消费超100元"
+```
+
+##### 3.2 审批工作流
+
+**操作风险分级**：
+| 风险等级 | 操作示例 | 审批要求 | 超时策略 |
+|---------|---------|---------|---------|
+| **安全** | 查询、检索、生成报告 | 无需审批 | - |
+| **低风险** | 发送内部邮件、创建工单 | 自动批准 | - |
+| **中风险** | 发送外部邮件、导出数据 | 需经理审批（1h内） | 超时拒绝 |
+| **高风险** | 更新数据库、修改配置 | 需主管+二次确认 | 超时拒绝 |
+| **破坏性** | 封禁IP、删除数据 | 双审批+回滚预案 | 超时拒绝 |
+
+**审批界面示例**（运维场景）：
+```
+⚠️ 高风险操作审批请求
+
+操作：isolate_host（隔离主机）
+发起人：张三（运维专员）
+时间：2026-02-09 14:30:00
+
+操作详情：
+- 主机IP：10.0.1.50
+- 影响范围：Web服务中断
+- 预计恢复：1-2小时
+
+安全分析：
+- 外联目标：1.2.3.4（黑名单C2服务器）
+- 外联流量：500MB（异常）
+- 威胁等级：高
+
+回滚预案：
+1. 自动备份网络配置
+2. 可执行：restore_network(host="10.0.1.50")
+3. 已通知业务负责人
+
+审批选项：
+[✅ 批准] [❌ 拒绝] [⏸️ 延后1小时]
+```
+
+##### 3.3 Dry-run（预演模式）
+
+```python
+def execute_high_risk_tool(tool_name, params):
+    # 第1步：Dry-run
+    dry_run_result = tool.execute(params, mode="dry_run")
+
+    # 展示影响
+    impact = f"""
+    📋 操作预演：
+    - 将修改{dry_run_result['affected_rows']}条数据
+    - 涉及表：{dry_run_result['tables']}
+    - 不可逆：{'是' if tool.state_mutating else '否'}
+    """
+
+    # 第2步：人工确认
+    if not request_approval(impact):
+        return ABORT
+
+    # 第3步：真实执行
+    result = tool.execute(params, mode="real")
+    store_rollback_snapshot(result)
+    return result
+```
+
+##### 3.4 回滚机制
+
+```yaml
+execute_sql工具（支持回滚）：
+  执行前：
+    - 创建事务快照
+    - 记录影响数据行（before值）
+    - 生成回滚SQL
+
+  回滚方法：
+    - rollback_sql(run_id, step_id)
+    - 执行反向SQL
+
+isolate_host工具（支持回滚）：
+  执行前：
+    - 备份网络配置
+    - 通知业务负责人
+
+  回滚方法：
+    - restore_network(host_ip)
+    - 验证连通性
+
+send_email工具（不支持回滚）：
+  特点：
+    - 邮件无法撤回
+    - 必须二次确认
+    - 支持发送前预览
+```
+
+##### 3.5 策略执行流程
+
+```
+用户请求 → LLM规划 → 工具调用
+              ↓
+    【策略引擎检查】
+    1. 工具白名单
+    2. 参数Schema验证
+    3. 数据权限检查
+    4. 策略匹配
+              ↓
+    ┌─ ALLOW → 直接执行
+    ├─ REQUIRE_APPROVAL → Dry-run → 审批 → 执行
+    └─ DENY → 拒绝
+              ↓
+    【工具执行】（沙箱/幂等/超时）
+              ↓
+    【审计记录】（Trace + 回滚信息）
+```
+
+---
+
+#### 4. 安全防护（对抗威胁）
 
 ##### 3.1 提示注入（Prompt Injection）防御
 
@@ -746,12 +1126,22 @@ def execute_code_safe(code, timeout=5):
 ```
 
 #### 缓存标注
+
+**强时效数据策略**：
+对于价格、报价、实时状态等强时效数据，系统采取以下策略：
+- **不缓存或极短TTL**（≤5分钟）
+- **输出必须标注数据时间戳**："根据2026-02-09 14:30的报价单，XX产品价格为XXX元/年"
+- **过期自动失效**：超过时效的数据不会被返回，而是重新查询
+
 ```
-输出示例：
+✅ 正确示例（制度文档，适合长期缓存）：
+"根据《公司请假管理制度V2.1》（2025年版），年假计算规则如下...（文档更新时间：2025-03-15）"
+
+✅ 正确示例（企业信息，中期缓存）：
 "XX公司成立于2015年，注册资本1000万元（数据时间：2026-02-09 10:00，缓存有效期至2026-02-16）"
 
-而非错误示例：
-"XX公司最新价格为XXX元/年"（未标注时间，可能是过期缓存）
+❌ 错误示例（价格信息，不应使用过期缓存）：
+"XX公司最新价格为XXX元/年"（未标注时间，可能是过期缓存，报价风险高）
 ```
 
 ### 并发与性能优化
@@ -1079,13 +1469,15 @@ def validate_tool_params(tool_name, params):
 **售前场景成本结构**：
 ```yaml
 成本明细（单次任务）：
-  本地模型推理：
-    - Qwen2.5-14B推理成本：~$0（已摊销）
-    - 文档摘要、信息提取、模板填充
+  本地模型推理（边际成本低）：
+    - Qwen2.5-14B推理：边际成本≈$0（硬件已摊销，电费可忽略）
+    - 适用场景：文档摘要、信息提取、模板填充
+    - 说明：初期需服务器投入（2×A100约30万），但长期运营成本主要是电费+运维，
+            与调用次数无关，因此边际成本极低
 
-  云模型调用（20%任务）：
-    - GPT-4 Turbo调用成本：$0.02
-    - 复杂推理、创意性内容
+  云模型调用（按需付费，20%任务）：
+    - GPT-4 Turbo调用：按token计费，约$0.02/次
+    - 适用场景：复杂推理、创意性内容
 
   外部API：
     - 企查查API单次查询：$0.10
