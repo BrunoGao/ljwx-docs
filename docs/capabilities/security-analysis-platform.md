@@ -1,4 +1,4 @@
-# 安全数据分析与自动化处置平台能力
+# 安全数据分析与自动化处置平台
 
 > 日志归一 → 风险识别 → 自动化处置 → 证据链
 > 适用：安全运营中心(SOC) / 等保合规 / 安全托管服务
@@ -512,6 +512,76 @@ rollback:
 
 ---
 
+## 11. 安全数据分析平台设计规范
+
+### 11.1 色彩系统（安全红变体）
+| Token 名称 | 色值 | 用途 | 备注 |
+|---|---|---|---|
+| `--bg-primary` | **#0F1117** | 全局页面背景 | 近黑，非纯黑 |
+| `--bg-card` | **#1A1D2E** | 卡片/面板底色 | 深灰蓝 |
+| `--bg-card-elevated` | **#242738** | 浮层/弹出面板 | 比卡片亮一档 |
+| `--accent-primary` | **#DC2626** | 主强调色，标题下划线，关键数据高亮 | 安全红 |
+| `--accent-primary-hover` | **#B91C1C** | hover 态 | 安全红暗化 |
+| `--accent-primary-muted` | **#7F1D1D** | 大面积红色提示区 | 安全红淡色 |
+| `--accent-secondary` | **#2563EB** | evidence_uri 链接色，引用页码色 | 仅作辅助高亮 |
+| `--accent-secondary-muted` | **#1E3A5F** | evidence_uri 高亮底色 | 暗蓝 |
+| `--color-success` | **#22C55E** | SUCCESS 状态，"实测"标签 | 翠绿 |
+| `--color-warning` | **#F59E0B** | P2 告警，PAUSED 状态，"目标"标签 | 琥珀金 |
+| `--color-error` | **#EF4444** | P0 级告警闪烁/高危提示 | 仅作高危提示，非主色 |
+| `--color-info` | **#3B82F6** | 信息性提示，P4 级别标识 | 信息蓝 |
+| `--color-text-primary` | **#F9FAFB** | 主文字 | 近白 |
+| `--color-text-secondary` | **#9CA3AF** | 次要文字，脚注 | 石板灰 |
+| `--color-text-muted` | **#6B7280** | 禁用态文字，占位符 | 中灰 |
+| `--color-border` | **#374151** | 边框/分隔线 | 深灰 |
+| `--color-border-muted` | **#1F2937** | 微弱分隔 | 极深灰 |
+
+### 11.2 字体系统
+| 用途 | 字体 | 字重 | 字号 | 色值 | 备注 |
+|---|---|---|---|---|---|
+| 中文标题 | Source Han Sans SC | Bold | 28px / 24px / 20px | `--color-text-primary` | H1 / H2 / H3 |
+| 中文正文 | Source Han Sans SC | Regular | 16px / 14px | `--color-text-primary` | body / caption |
+| 英文字段名/ID/数字 | JetBrains Mono | Bold | 16px / 14px / 12px | `--color-text-primary` | trace_id、case_id、指标数值 |
+| 英文正文/描述 | Inter | Regular / Medium | 16px / 14px | `--color-text-primary` | 描述、说明 |
+| 代码/Schema 展示 | JetBrains Mono | Regular | 12px | `--color-text-secondary` | 仅附录 |
+
+### 11.3 图标系统
+- **来源**：Phosphor Icons（https://phosphoricons.com）为主，Lucide（https://lucide.dev）为辅
+- **风格**：Phosphor Regular（视觉等效线宽 1.5px），特殊强调场景用 Phosphor Bold（视觉等效线宽 2px）
+- **尺寸**：16px（表格内/标签旁）/ 20px（卡片内/列表项）/ 24px（架构图节点/页面标题旁）
+- **核心图标映射**：
+  - 采集层：Phosphor `Download` 24px
+  - 归一层：Phosphor `FunnelSimple` 24px
+  - 分析层：Phosphor `MagnifyingGlass` 24px
+  - 处置层：Phosphor `Lightning` 24px
+  - 证据层：Phosphor `ChartLine` 24px
+  - 心跳探活：Phosphor `Heartbeat` 20px
+  - 锁/安全：Phosphor `Lock` 20px
+  - 审计：Phosphor `ClipboardText` 20px
+  - 告警：Phosphor `Bell` 20px
+  - 证据链：Phosphor `LinkSimple` 20px
+  - 状态成功：Phosphor `CheckCircle` 16px
+  - 状态失败：Phosphor `XCircle` 16px
+  - 状态暂停：Phosphor `Pause` 16px
+  - ReservedHighRisk：Phosphor `Warning` 20px（`--accent-primary` #DC2626 色）
+
+### 11.4 圆角/阴影/间距
+- **圆角**：卡片 8px / 按钮 6px / 标签 4px / 表格 0px（直角）
+- **阴影**：卡片 `0 4px 12px rgba(0,0,0,0.3)` / 浮层 `0 8px 24px rgba(0,0,0,0.4)`
+- **间距**：页面内边距 64px / 卡片间距 24px / 元素间距 16px / 紧凑间距 8px
+
+### 11.5 与机器人巡检平台差异对照
+| 维度 | 安全平台（本稿） | 机器人巡检（另一产品线） |
+|------|-----------------|---------------------|
+| 主强调色 | #DC2626 安全红 | #2563EB 科技蓝 |
+| 背景 | #0F1117 近黑 | #0F172A 深蓝黑 |
+| 五层定义 | 采集→归一→分析→处置→证据 | 终端→边缘→适配→服务→展示 |
+| Trace 类型 | Security Trace（case-centric） | Patrol Trace（mission-centric） |
+| 核心 KPI | ISR/Precision/Alert Latency/MTTR/AASR/ECR | WSR/MSR/Mission Latency |
+| 状态机 | 无 DISPATCHED | 有 DISPATCHED |
+| 字段域 | case_id/alert_ids/event_ids/principal/target | mission_id/robot_id/map_version |
+
+---
+
 ## 附录：技术栈参考
 
 ### 采集层
@@ -540,6 +610,7 @@ rollback:
 
 ---
 
-**文档版本**：v1.0
-**更新日期**：2026-02-09
+**文档版本**：v1.2-final-rc2
+**更新日期**：2026-02-11
 **适用场景**：安全运营中心(SOC)、等保合规、安全托管服务、投标方案
+**设计风格**：风格 A · 暗夜琥珀 · 安全红变体（Dark Amber Industrial · Security Red Variant）

@@ -1,4 +1,4 @@
-# 机器人巡检与安防智能化平台
+# 机器人巡检与安防一体化平台
 
 > 机器人 ≠ 硬件；机器人 = 感知 × 控制 × 数据 × AI × 平台
 > 适用：园区巡检 / 工业巡检 / 安防巡更 / 智能运维
@@ -227,7 +227,7 @@ on_complete:
   - return_to_charge: true
 
 on_error:
-  - alert: security_team
+  - alert: security-team
   - try_rescue: true  # 尝试自救（如重启导航）
   - max_retry: 3
 ```
@@ -643,6 +643,92 @@ priority: high
 
 ---
 
+## 12. 风格 A · 暗夜琥珀设计规范
+
+### 12.1 色彩系统
+| Token 名称 | 色值 | 用途 | 备注 |
+|---|---|---|---|
+| `--bg-primary` | **#121212** | 全局页面背景 | 近黑灰，非纯黑（避免 OLED 闪烁） |
+| `--bg-secondary` | **#1E1E2E** | 页面辅助区域、大块底色 | 带微弱紫调的深灰 |
+| `--card-bg` | **#1E293B** | 数据卡片、Bento 块、表格底色 | 深蓝灰，与背景有层次感 |
+| `--card-bg-elevated` | **#283548** | 悬浮卡片、弹出层 | 比 card-bg 亮一档 |
+| `--accent-primary` | **#F59E0B** | 标题、关键数字、CTA、活跃状态、Trace 边框 | **琥珀金——本风格灵魂色** |
+| `--accent-secondary` | **#FB923C** | 告警、治理面、边缘 Required、次级强调 | 暖橙 |
+| `--accent-tertiary` | **#FBBF24** | 极少量使用：进度条、hover、微交互 | 亮金 |
+| `--text-primary` | **#F1F5F9** | 正文、标题文字 | 冷白 |
+| `--text-secondary` | **#94A3B8** | 脚注、次级信息、描述文字 | 石板灰 |
+| `--text-tertiary` | **#64748B** | 占位符、禁用态 | 暗灰 |
+| `--status-success` | **#22C55E** | SUCCESS 状态、达标指标、在线 | 翠绿 |
+| `--status-fail` | **#EF4444** | FAIL 状态、错误、告警高亮 | 警戒红 |
+| `--status-paused` | **#F59E0B** | PAUSED 状态（复用主色） | 琥珀 |
+| `--status-aborted` | **#6B7280** | ABORTED、已归档 | 中灰 |
+| `--status-reserved` | **#EF4444** + 🔒 | ReservedHighRisk | 红+锁 |
+| `--border-default` | **#334155** | 默认卡片边框（1px） | 深灰蓝 |
+| `--border-accent` | **#F59E0B** | Trace 卡片、高亮卡片边框（2px） | 琥珀 |
+| `--border-subtle` | **#1E293B** | 表格内部分隔线（0.5px） | 极弱 |
+| `--line-connector` | **#94A3B8** | 架构图连接线、箭头 | 1.5px |
+| `--line-glow` | **#F59E0B** @ 20% opacity | 琥珀发光投影 | 核心数字、状态机节点 |
+| `--evidence-highlight` | **#78350F** | Evidence URI 行底色高亮 | 深琥珀（低饱和） |
+| `--tag-target` | **#F59E0B** bg + **#121212** text | 表述级别"目标"标签 | 琥珀底黑字 |
+| `--tag-measured` | **#22C55E** bg + **#121212** text | 表述级别"实测"标签 | 绿底黑字 |
+| `--tag-derived` | **#6B7280** bg + **#F1F5F9** text | 表述级别"推导"标签 | 灰底白字 |
+| `--tag-poc` | **#FB923C** bg + **#121212** text | "POC 验证项"标签 | 橙底黑字 |
+| `--governance-bar` | **#FB923C** | 治理/安全纵向侧栏 | 暖橙 |
+| `--edge-required` | **#EF4444** | 边缘层 REQUIRED 徽标 | 红色 |
+| `--topline` | **#F59E0B** | 每页顶部 2px 装饰线 | 品牌标识线 |
+
+### 12.2 字体系统
+| 用途 | 字体 | 字重 | 字号 | 色值 | 备注 |
+|---|---|---|---|---|---|
+| 页面大标题 | **JetBrains Mono** | Bold | **28pt** | `--accent-primary` #F59E0B | 工业 Mono 感——灵魂标识 |
+| 页面副标题 | **Inter** | SemiBold | **20pt** | `--text-primary` #F1F5F9 | — |
+| 正文 | **Inter** | Regular | **16pt** | `--text-primary` #F1F5F9 | — |
+| 卡片内字段名 | **JetBrains Mono** | Medium | **14pt** | `--accent-primary` #F59E0B | 与智能体差异的核心点 |
+| 卡片内字段值 | **Inter** | Regular | **12pt** | `--text-secondary` #94A3B8 | — |
+| KPI 数字 | **JetBrains Mono** | Bold | **36pt** | `--accent-primary` #F59E0B | 带微弱 glow |
+| 表格标题行 | **Inter** | SemiBold | **14pt** | `--text-primary` #F1F5F9 | — |
+| 表格内容 | **Inter** | Regular | **13pt** | `--text-secondary` #94A3B8 | — |
+| 脚注 | **Inter** | Regular Italic | **10pt** | `--text-secondary` #94A3B8 | — |
+| 状态标签 | **JetBrains Mono** | Medium | **11pt** | 按标签色 | Chip 组件 |
+| 中文正文 | **Source Han Sans SC** | Regular | 同上 | 同上 | 与 Inter 等高对齐 |
+| 中文标题 | **Source Han Sans SC** | Bold | 同上 | 同上 | JetBrains Mono 仅用于英文/数字部分 |
+
+### 12.3 图标系统
+| 属性 | 规格 |
+|---|---|
+| 图标集 | **Phosphor Bold**（加粗线性） |
+| Stroke 宽度 | **2px** |
+| 尺寸档位 | **16px**（表格内/标签内）/ **20px**（卡片内）/ **24px**（架构图组件）/ **32px**（痛点/差异化大卡片） |
+| 默认色 | `--accent-primary` #F59E0B |
+| 次级色 | `--text-secondary` #94A3B8 |
+| 状态色 | 跟随状态色（绿/红/灰） |
+
+### 12.4 全局装饰元素
+| 元素 | 规格 | 位置 |
+|---|---|---|
+| **顶部琥珀线** | 2px 高 × 全宽 (1920px)，色 `--topline` #F59E0B | 每页顶部 y=0 |
+| **右上角警戒三角** | Phosphor "warning" icon 16px，色 #FB923C，12% opacity | 每页右上角 (1880, 20) |
+| **底部信息条** | 高 32px，bg #1E1E2E，内含：左侧页码（JetBrains Mono 10pt #64748B）+ 中间版本号 "v1.2-rc2" + 右侧日期 "2026-02-11" | 每页底部 |
+| **卡片圆角** | **8px**（比智能体 12px 更锐利——工业感） | 所有卡片 |
+| **卡片投影** | `0 4px 12px rgba(245, 158, 11, 0.08)` | 主要内容卡片（微弱琥珀发光） |
+| **页面分隔** | 无全宽分隔线；用卡片边界和间距分区 | — |
+
+### 12.5 与智能体 PPT 差异速查
+| 维度 | 智能体 PPT | 机器人巡检 PPT（风格 A） |
+|---|---|---|
+| 背景 | #0A1628 深蓝 | **#121212 近黑灰** |
+| 主强调色 | #2563EB 蓝 | **#F59E0B 琥珀金** |
+| 标题字体 | Inter/Source Han Sans | **JetBrains Mono**（工业 Mono） |
+| 卡片底色 | #F8FAFC 白 | **#1E293B 深蓝灰** |
+| Trace 边框 | #60A5FA 蓝 | **#F59E0B 琥珀** |
+| 治理侧栏 | #F59E0B 琥珀 | **#FB923C 暖橙** |
+| 圆角 | 12px | **8px（更锐利）** |
+| 图标风格 | Phosphor Regular 1.5px | **Phosphor Bold 2px** |
+| 整体气质 | 科技蓝·学术严谨 | **工业黑金·硬核现场感** |
+| 特殊装饰 | 无 | **顶部琥珀线 + 右上警戒三角 + 底部信息条** |
+
+---
+
 ## 附录：机器人选型建议
 
 ### 室内巡检机器人
@@ -668,6 +754,7 @@ priority: high
 
 ---
 
-**文档版本**：v1.0
-**更新日期**：2026-02-09
+**文档版本**：v1.2-final-rc2
+**更新日期**：2026-02-11
 **适用场景**：园区巡检、工业巡检、安防巡更、智能运维、投标方案
+**设计风格**：风格 A · 暗夜琥珀（Dark Amber Industrial）
