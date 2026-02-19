@@ -582,6 +582,234 @@ rollback:
 
 ---
 
+## 12. 安全数据分析与自动化处置平台 v1.2-final-rc2a 完整执行包
+
+### 12.1 决策基线锁定
+
+#### 12.1.1 rc1 继承决策（D1–D9）
+
+D1 · 主强调色：锁定 #DC2626（安全红），#2563EB 降级为 Secondary Highlight。安全平台以红色为主叙事符合行业认知，与机器人巡检蓝色系形成产品线差异。
+
+D2 · 架构层级：五层业务泳道 + 入口网关横切 + 治理面纵切 + 可观测面纵切。五层定义为安全域专属——采集→归一→分析→处置→证据与展示。
+
+D3 · AASR 统计：安全平台不使用 MSR 概念，使用 AASR（Automation Action Success Rate）。PARTIAL 为 action 级结果枚举（actions_executed[].status），不是案件级状态节点，不计入 AASR 成功分子。
+
+D4 · 时延字段：安全平台核心时延为 Alert Latency P95（event_time_normalized → alert_created_at）与 MTTR P95（alert_created_at → case_closed_at）。不使用 mission_latency_ms。
+
+D5 · Recall：主稿不承诺具体值，标注为 POC 验证项。
+
+D6 · 处置审批：审批是否必需由 risk_level 与 confidence_score 双条件决定——ReservedHighRisk 始终需要预审批 + MFA（无论严重等级）；Normal 级动作当 confidence_score ≥ 阈值且动作为可逆白名单动作时，P0/P1 可自动执行并事后留痕复核，否则进入 APPROVAL_PENDING；P2 及以下需人工审批后执行。详见 P12 审批裁决规则。
+
+D7 · 统一日志 Schema：参考 OCSF（Finding / Incident / Remediation / Threat Intelligence 等对象模型）进行字段设计，自定义扩展 + ECS 映射表放附录。具体对齐的 OCSF 版本见附录 A。
+
+D8 · 留存周期：可配置，热/温/冷默认参考值在 P14 脚注中给出（热 30 天/温 90 天/冷 1–3 年），不写死具体天数。
+
+D9 · 风格：风格 A 暗夜琥珀 · 安全红变体。
+
+#### 12.1.2 rc2 新增确认（E1–E4）
+
+E1 · P04 口径页策略 → A：P04 仅定义/公式/统计窗口/采样方法/标签规则，不写具体阈值。所有阈值集中在 P21 验收矩阵与交付 SOW。
+
+E2 · 单租户表述 → A：首版单租户本地部署，数据模型层预留 tenant_id / org_id 字段，不宣称多租户隔离能力。
+
+E3 · Security Trace 字段表达 → A：principal / target 为对象类型（含 ip 数组），新增 sources[] 多源描述。
+
+E4 · 字体规则 → A：中文 Source Han Sans SC，英文字段/数字 JetBrains Mono，英文正文 Inter。
+
+#### 12.1.3 补充确认（C1–C2）
+
+C1 · 安全平台主强调红 → #DC2626。#EF4444 仅用于 P0 级告警闪烁场景，不作主色。
+
+C2 · P11 Trace 形态 → A（case-centric）。trace_id 为案件级标识，与 OCSF 的 Incident Finding 概念对齐（具体 class_uid 与版本见附录 A）。
+
+### 12.2 域隔离清洗规则
+
+#### 12.2.1 全稿串线词替换表
+
+MSR（Mission Success Rate）→ 删除。安全平台使用 AASR。
+
+WSR（Write Success Rate）→ ISR（Ingest Success Rate）。
+
+mission_id → case_id 或 playbook_execution_id。
+
+mission_latency_ms → 删除。核心时延为 alert_latency_p95 与 mttr。
+
+mission_type / mission_result → 删除。处置结果枚举：SUCCESS / FAILED / ABORTED / ROLLED_BACK / PARTIAL（action 级）。
+
+dispatched_at → 删除。
+
+completed_at → 在 actions_executed[] 内用 action_completed_at，案件级用 case_closed_at。
+
+firmware_version → 删除。安全域对应 agent_version / connector_version（SHOULD）。
+
+map_switch_event / map_version / MapOps → 全部删除。
+
+site_id → location_id 或 business_unit_id。
+
+robot_id / robot_model → 全部删除。物理设备用 asset_id + asset_type。
+
+adapter_id / adapter_version → connector_id / connector_version。
+
+CONDITIONAL_SUCCESS → PARTIAL（action 级枚举）。
+
+"数据中心机房巡检联动" → "数据中心场景：物理访问 + 网络行为联合溯源"。
+
+DISPATCHED（状态机）→ 删除。
+
+"多租户网关" → "入口网关（Ingress Gateway）"。
+
+"边缘层" → 删除。
+
+"协议适配" → "日志采集与协议接入"。
+
+"对外协议口径 HTTP/MQTT/WS" → 删除此统一口径。替换为分场景口径——采集接入（Ingest）：Syslog（TCP/UDP）、CEF/LEEF、Agent、云 API（REST）、Webhook/HTTP；平台对外集成接口（Control/API）：HTTPS/REST，可选 WebSocket 实时推送。MQTT 仅在 P07 Connector Registry 的 protocols 字段中保留为可选协议（IoT 安全场景），不作为主稿默认对外能力。
+
+#### 12.2.2 允许保留的跨域词汇
+
+mission — 仅"mission statement"等非技术语境。completed_at — 仅 actions_executed[] 子对象内。site — 仅"on-site deployment"等通用语境。
+
+#### 12.2.3 验证方法
+
+rc2a 完稿后执行正则搜索确认零命中（排除 1.2 允许项）：
+`\b(MSR|WSR|mission_id|mission_latency|mission_type|mission_result|dispatched_at|firmware_version|map_switch|map_version|MapOps|site_id|robot_id|robot_model|adapter_id|adapter_version|CONDITIONAL_SUCCESS|DISPATCHED|多租户网关|边缘层|协议适配)\b`
+
+### 12.3 Security Trace 字段字典（唯一真源）
+
+#### 12.3.1 设计原则
+
+Case-centric：一个 case 一个 trace_id。与 OCSF Incident Finding 概念对齐（精确 class_uid 与 OCSF 版本号详见附录 A，主稿不硬引用版本号）。域隔离：与 Patrol Trace 严格分离。
+
+OCSF 对齐列为概念参考（conceptual alignment），表示字段设计意图与 OCSF 中对应概念的语义关联。实际字段映射以附录 A 的 OCSF↔ECS↔内部字段映射表为准，不构成一一对应关系。
+
+#### 12.3.2 MUST 字段（14 项）
+
+| # | 字段名 | 类型 | 说明 | OCSF 概念参考 |
+|---|--------|------|------|--------------|
+| M01 | trace_id | string (UUID v7) | 案件级追踪标识 | — |
+| M02 | case_id | string (UUID v7) | 案件唯一标识 | finding_info.uid |
+| M03 | alert_ids | string[] | 关联告警列表，≥1 | related_events[] |
+| M04 | event_ids | string[] | 关联原始事件列表，≥1 | observables[] |
+| M05 | correlation_id | string (nullable) | 攻击链 ID | metadata.correlation_uid |
+| M06 | sources | object[] | 多源描述；source_system / collector_id / ingest_path | metadata.product |
+| M07 | principal | object | 攻击方；ip(string[]) / port / host / user | src_endpoint |
+| M08 | target | object | 受影响方；ip(string[]) / port / host / service | dst_endpoint |
+| M09 | event_time_range | object | first_seen / last_seen (datetime UTC) | time / end_time |
+| M10 | severity | enum | P0–P4 | severity_id |
+| M11 | confidence_score | float (0.0–1.0) | 综合置信度 | confidence_score |
+| M12 | detection_signals | object[] | 命中规则；rule_id / rule_name / mitre_tactic / mitre_technique | finding_info.analytic |
+| M13 | actions_executed | object[] | 处置动作；action_seq / action_name / status(SUCCESS/FAILED/ABORTED/ROLLED_BACK/PARTIAL) / started_at / completed_at / approval_record | remediation[] |
+| M14 | evidence_uri | string | WORM 存储 URI | evidences[] |
+
+#### 12.3.3 SHOULD 字段（12 项）
+
+| # | 字段名 | 类型 | 说明 |
+|---|--------|------|------|
+| S01 | tenant_id / org_id | string | 字段预留，首版固定值 |
+| S02 | location_id | string | 资产位置/区域标识 |
+| S03 | affected_assets | object[] | asset_id / asset_type / hostname / ip |
+| S04 | agent_version | string | 采集 Agent 版本 |
+| S05 | connector_version | string | 对接器版本 |
+| S06 | work_order_id | string | 工单关联 ID |
+| S07 | retention_policy_id | string | 留存策略标识 |
+| S08 | clock_skew_ms_stats | object | max_ms / avg_ms / warning_count |
+| S09 | audit_hash | string | SHA256 全卡片哈希（建议未来升级 MUST） |
+| S10 | reconcile_status | enum | MATCHED / MISMATCH / PENDING |
+| S11 | case_status | enum | OPEN / IN_PROGRESS / CLOSED / RESOLVED。案件级整体状态（一个 case 可触发多次预案执行） |
+| S12 | case_resolution | enum | RESOLVED / MITIGATED / FALSE_POSITIVE / ESCALATED。仅 case_status=CLOSED/RESOLVED 时填写 |
+
+#### 12.3.4 MAY 字段（6 项）
+
+| # | 字段名 | 类型 | 说明 |
+|---|--------|------|------|
+| Y01 | threat_intel_match | object[] | ioc_type / ioc_value / feed_source / confidence |
+| Y02 | kill_chain_phase | string[] | MITRE ATT&CK Tactics 阶段列表 |
+| Y03 | related_case_ids | string[] | 关联案件 ID |
+| Y04 | approval_id | string | 审批单 ID |
+| Y05 | compliance_basis_id | string | 合规依据标识 |
+| Y06 | model_version | string | AI/ML 模型版本号 |
+
+#### 12.3.5 字段说明
+
+principal.ip / target.ip 为数组，支持多源多目标。单事件退化为单元素数组。trace_id 为案件级，非事件级。采集接入协议：Syslog/CEF/LEEF/Agent/云API/Webhook。平台集成接口：HTTPS/REST。gRPC 为内部通信，详见附录 A。
+
+#### 12.3.6 四处同源校验点
+
+① P13 卡片字段 ② P13 时间线节点 ③ P21 验收矩阵 ECR 引用 MUST 列表 ④ P23 附录 A 完整版。
+
+### 12.4 核心指标口径定义
+
+| 指标中文名 | 缩写 | 计算公式 | 统计窗口 | 采样方法 | 标签规则 | 级别 |
+|-----------|------|---------|---------|---------|---------|------|
+| 日志接入成功率 | ISR | 成功入库 ÷ 采集端发送 ×100%；分 ISR-收集 / ISR-入库两层 | 7天滚动 | 全量 | — | 实测 |
+| 解析准确率 | PAR | 正确条数 ÷ 抽样 ×100%；正确=MUST字段均提取且类型匹配 | 按批次 | 随机≥500条 | 字段级评分 | 实测/POC |
+| 归一化准确率·字段 | NAR-F | 关键字段正确 ÷ 总数 ×100%；关键字段:src.ip/dst.ip/event_type/severity/user.name | 按批次 | 随机≥500条 | 字段级评分 | 实测/POC |
+| 归一化准确率·时间戳 | NAR-T | 时区转换正确 ÷ 总数 ×100%；clock_skew>±500ms标记异常 | 按批次 | 随机≥500条 | 逐条校验 | 实测/POC |
+| 告警精确率 | Precision | TP÷(TP+FP)×100% | 按批次 | 人工标注≥200条 | 规则见附录B | 实测/POC |
+| 告警召回率 | Recall | TP÷(TP+FN)×100% | 按批次 | 红蓝对抗 | 规则见附录B | POC‡ |
+| 端到端告警时延 | Alert Latency P95 | event_time_normalized→alert_created_at 取P95 | 7天滚动 | 全量 | — | 实测 |
+| 平均响应时间 | MTTR P50/P95 | alert_created_at→case_closed_at；P50内部/P95对外 | 30天滚动 | 全量（排除"忽略"） | 响应完成=CLOSED/RESOLVED | 目标 |
+| 自动化处置成功率 | AASR | 成功action÷自动触发action×100%；排除ABORTED_BY_OPERATOR | 7天滚动 | 全量（白名单内预案） | — | 目标 |
+| 证据链完整度 | ECR | 具备全部MUST字段case÷总case×100% | 7天滚动 | 全量 | 校验规则见P13 | 实测 |
+| 攻击链检测完整度 | ACDR | 正确关联阶段÷实际阶段×100%；对齐ATT&CK Tactics | 按批次 | 红蓝对抗 | ATT&CK阶段对齐 | POC‡ |
+| 审计报表生成时延 | ARGT P95 | 触发→report_ready 取P95 | 按需 | 全量 | — | 目标 |
+
+### 12.5 验收矩阵
+
+| 指标 | 缩写 | MVP | 生产 | 规模化 | 验收方式 | P04引用 |
+|------|------|-----|------|--------|---------|---------|
+| 日志接入成功率 | ISR | ≥99.0% | ≥99.5% | ≥99.9% | 计数器自动比对 | 行1 |
+| 解析准确率 | PAR | ≥90% | ≥95% | ≥98% | 抽样≥500条 | 行2 |
+| 归一化·字段 | NAR-F | ≥88% | ≥93% | ≥97% | 抽样 | 行3 |
+| 归一化·时间戳 | NAR-T | ≥92% | ≥96% | ≥99% | 抽样+clock_skew | 行4 |
+| 告警精确率 | Precision | ≥80% | ≥88% | ≥93% | 人工标注≥200条 | 行5 |
+| 告警召回率 | Recall | POC‡ | POC‡ | POC‡ | 红蓝对抗 | 行6 |
+| 告警时延 | Alert Latency P95 | <120s | <60s | <30s | 自动监控 | 行7 |
+| 响应时间 | MTTR P95 | <60min | <30min | <15min | 日志统计 | 行8 |
+| 自动化成功率 | AASR | ≥85% | ≥92% | ≥97% | 执行日志统计 | 行9 |
+| 证据完整度 | ECR | ≥90% | ≥95% | ≥98% | MUST字段校验 | 行10 |
+| 攻击链完整度 | ACDR | POC‡ | POC‡ | POC‡ | 红蓝对抗 | 行11 |
+| 报表时延 | ARGT P95 | <120s | <60s | <30s | 自动计时 | 行12 |
+
+### 12.6 严重等级与处置策略绑定
+
+**审批裁决规则（全稿唯一规则）：**
+
+审批由 risk_level 与 confidence_score 双条件决定。规则一：ReservedHighRisk 始终预审批+MFA，无论严重等级。规则二：Normal 级当 confidence_score ≥ 阈值（默认 0.75 可配置）且动作为可逆白名单动作时，P0/P1 可自动执行并事后留痕复核（"事后审批记录"= 事后留痕复核，不替代预审批）；confidence_score < 阈值则进入 APPROVAL_PENDING。规则三：P2 及以下需人工审批（P3 白名单内低风险信息收集类动作除外）。判断流程：检查 risk_level → ReservedHighRisk 直接审批 → Normal 检查 confidence_score → 达标+白名单内=自动执行 → 不达标=审批。
+
+### 12.7 全稿一致性检查表
+
+12.1 字段五处同源：P04 指标名 ↔ P21 指标名 ↔ P13 Trace 字段引用 ↔ P23 附录 A ↔ Speaker Notes。
+
+12.2 缩写一致性：全稿只用 ISR, PAR, NAR-F, NAR-T, Precision, Recall, AASR, ECR, ACDR, ARGT, MTTR。不出现 MSR, WSR, mission_latency_ms, APR, ACR。MTTD 不在本稿口径范围——检测时延用 Alert Latency P95 表达（event_time_normalized→alert_created_at），与 MTTD（攻击活动开始到发现）不完全等价。当前版本不引入 MTTD。
+
+12.3 配色一致性：主强调=#DC2626 每页标题下划线。辅助=#2563EB 仅链接/evidence_uri。不出现"主色#2563EB"。P0 闪烁=#EF4444 仅 P12 P0 行和架构图。
+
+12.4 脚注一致性：每页底部模板含统计窗口/P95-P50 策略/表述级别定义/‡说明/留存引用 P14。无裸数字。
+
+12.5 串线词零命中：1.3 节正则搜索确认。
+
+12.6 留存数值一致性：只 P14 脚注一套。其他页引用"见 P14"。
+
+12.7 等保表述一致性："等保 2.0/关基/行业监管+客户法规为准"统一。
+
+12.8 Gartner 零命中：全稿无 Gartner 报告名。
+
+12.9 "100+ 格式"零命中：替换为"可扩展格式解析"。
+
+12.10 ReservedHighRisk 一致性：仅 Normal/ReservedHighRisk。不出现 Controlled/Elevated。
+
+12.11 OCSF 版本号零命中（主稿）：P01–P22 不出现"OCSF 1.3"或"class_uid"。版本号仅 P23 附录 A。
+
+12.12 Cohen's Kappa 格式：全稿"Cohen's Kappa ≥ 0.85"，不出现"≥85%"。
+
+12.13 PARTIAL 作用域：全稿 PARTIAL 均标注"action 级"或"actions_executed[].status"。状态机图无 PARTIAL 节点。case_status/case_resolution 出现在 5.3 S11/S12 + P13 卡片 + 图 6。
+
+12.14 协议口径一致性："HTTP/MQTT/WS"作为三项并列零命中。MQTT 仅 P07 protocols 字段可选。
+
+12.15 MTTD 零命中（除 12.2 说明文字）。
+
+---
+
 ## 附录：技术栈参考
 
 ### 采集层
@@ -610,7 +838,8 @@ rollback:
 
 ---
 
-**文档版本**：v1.2-final-rc2
+**文档版本**：v1.2-final-rc2a
 **更新日期**：2026-02-11
 **适用场景**：安全运营中心(SOC)、等保合规、安全托管服务、投标方案
 **设计风格**：风格 A · 暗夜琥珀 · 安全红变体（Dark Amber Industrial · Security Red Variant）
+**状态**：冻结候选（Freeze Candidate）
