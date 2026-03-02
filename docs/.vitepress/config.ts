@@ -24,6 +24,15 @@ export default withMermaid(defineConfig({
           { text: '首页', link: '/' },
           { text: '快速开始', link: '/QUICK-REFERENCE' },
           {
+            text: 'Bid-MVP Factory',
+            items: [
+              { text: 'Operator Quickstart', link: '/factory/' },
+              { text: 'Dashboard', link: '/factory/dashboard' },
+              { text: 'Traceability', link: '/factory/traceability' },
+              { text: 'Templates', link: '/templates/' }
+            ]
+          },
+          {
             text: 'DevOps',
             items: [
               { text: 'GitOps 实践', link: '/devops/gitops/' },
@@ -84,6 +93,33 @@ export default withMermaid(defineConfig({
         ],
 
         sidebar: {
+          '/factory/': [
+            {
+              text: 'Bid-MVP Factory',
+              items: [
+                { text: 'Operator Quickstart', link: '/factory/' },
+                { text: 'Project Setup Runbook', link: '/factory/project-setup-runbook' },
+                { text: 'Factory Process', link: '/factory/process' },
+                { text: 'Roles and Ownership', link: '/factory/roles' },
+                { text: 'Evidence Dashboard', link: '/factory/dashboard' },
+                { text: 'Traceability Chain', link: '/factory/traceability' }
+              ]
+            }
+          ],
+          '/templates/': [
+            {
+              text: 'Factory Templates',
+              items: [
+                { text: 'Templates Home', link: '/templates/' },
+                { text: 'Spec Template', link: '/templates/spec-template' },
+                { text: 'Architecture Template', link: '/templates/architecture-template' },
+                { text: 'Demo Template', link: '/templates/demo-template' },
+                { text: 'UAT Template', link: '/templates/uat-template' },
+                { text: 'Release Template', link: '/templates/release-template' },
+                { text: 'Acceptance Report Template', link: '/templates/acceptance-report-template' }
+              ]
+            }
+          ],
           '/guide/': [
             {
               text: '指南',
