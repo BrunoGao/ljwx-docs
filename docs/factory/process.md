@@ -11,6 +11,12 @@ description: Bid-MVP factory control flow and gate criteria
 - Deployment control plane: queueing, digest pinning, smoke checks, repair loop.
 - Evidence control plane: immutable records published to GitHub Pages.
 
+## Deployment Invariant
+
+- One GitOps codebase serves two dev clusters: local `k3s` and OrbStack `k3s` in China mainland.
+- Only overlays/values/env parameter files can differ between clusters.
+- Service logic, promotion logic, and gate policy must remain shared.
+
 ## End-to-End Flow
 
 1. Contributor opens Gate-1 PR using `gate-1-spec.md`.

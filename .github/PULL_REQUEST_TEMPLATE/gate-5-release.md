@@ -11,6 +11,7 @@
 ### Strict Checklist (all required)
 - [ ] Release candidate and commit SHA are fixed.
 - [ ] Queue entry exists with service/env metadata.
+- [ ] Release notes identify cluster-specific parameters (if any) without code divergence.
 - [ ] Rollback plan is present and tested.
 - [ ] Promotion evidence is attached.
 - [ ] Smoke result is attached.

@@ -10,6 +10,7 @@
 - [ ] Scope and non-scope are explicit.
 - [ ] Acceptance criteria are testable.
 - [ ] Risks and assumptions are listed.
+- [ ] Requirement keeps same codebase for local `k3s` and OrbStack `k3s`; no code fork requested.
 - [ ] Linked to GitHub Project `Bid-MVP Factory` card.
 - [ ] At least one evidence link is attached.
 

@@ -11,6 +11,7 @@
 - [ ] Data flow and contracts are documented.
 - [ ] Security and rollback strategy are documented.
 - [ ] Dependency and migration impact assessed.
+- [ ] Cluster differences are isolated to overlays/values/env files only.
 - [ ] Architecture evidence link is attached.
 
 ### Blocking Rule

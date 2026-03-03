@@ -26,6 +26,14 @@ description: Operating model for Bid-MVP factory
 | Smoke Validation | I | I | C | A/R | C |
 | Incident + Auto Repair | I | C | C | R | A |
 
+## Gate Reviewer Ownership
+
+- Gate-1 Spec: Product Owner approves.
+- Gate-2 Architecture: Architect approves.
+- Gate-3 Demo: Product Owner + Delivery Engineer approve.
+- Gate-4 UAT: Product Owner approves; SRE consulted on operational risk.
+- Gate-5 Release: Delivery Engineer prepares; Product Owner final approval.
+
 ## Escalation Path
 
 1. Gate blocker > 24h: escalate to Product Owner + Tech Lead.

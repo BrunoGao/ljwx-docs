@@ -13,6 +13,8 @@ This quickstart is the operator entry point for running the Bid-MVP factory.
 - Evidence feed is published on GitHub Pages from `gh-pages` branch.
 - `dev` environment supports auto-promote without manual reviewers.
 - CI and promotion must not rely on Harbor replication timing.
+- The same codebase must deploy to both local server `k3s` and China mainland dev server `OrbStack k3s`.
+- Environment differences are only allowed in overlays/values/env parameters; no code fork.
 
 ## Stable URLs
 

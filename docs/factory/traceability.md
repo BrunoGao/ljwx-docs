@@ -34,3 +34,5 @@ This chain guarantees every promotion can be traced from requirement to verifica
 - Evidence feed is generated from repository files only.
 - No external mutable database is required.
 - Dashboard entries must link back to raw GitHub artifacts.
+- Cluster portability is mandatory: the same GitOps source must run on both local `k3s` and OrbStack `k3s`.
+- Cluster-specific values must stay in overlays/values/env files only.

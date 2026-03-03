@@ -10,6 +10,7 @@
 - [ ] Demo path covers critical user flow.
 - [ ] Expected and observed results are documented.
 - [ ] Repro instructions are included.
+- [ ] Demo verifies same artifact can run on both local `k3s` and OrbStack `k3s` (parameterized config only).
 - [ ] Known gaps are listed with owner/date.
 - [ ] Demo evidence link is attached.
 
