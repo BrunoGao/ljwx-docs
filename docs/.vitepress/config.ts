@@ -29,6 +29,7 @@ export default withMermaid(defineConfig({
               { text: 'Operator Quickstart', link: '/factory/' },
               { text: 'Dashboard', link: '/factory/dashboard' },
               { text: 'Traceability', link: '/factory/traceability' },
+              { text: 'Onboarding', link: '/factory/onboarding' },
               { text: 'Templates', link: '/templates/' }
             ]
           },
@@ -101,6 +102,7 @@ export default withMermaid(defineConfig({
                 { text: 'Project Setup Runbook', link: '/factory/project-setup-runbook' },
                 { text: 'Factory Process', link: '/factory/process' },
                 { text: 'Roles and Ownership', link: '/factory/roles' },
+                { text: 'Onboarding Automation', link: '/factory/onboarding' },
                 { text: 'Evidence Dashboard', link: '/factory/dashboard' },
                 { text: 'Traceability Chain', link: '/factory/traceability' }
               ]

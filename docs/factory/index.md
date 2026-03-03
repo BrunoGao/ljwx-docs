@@ -42,16 +42,16 @@ Gate PR templates are in `.github/PULL_REQUEST_TEMPLATE/` and require evidence l
 
 ```bash
 # Validate evidence model in deploy repo
-python3 scripts/evidence/validate.py
+uvx --with pyyaml --with jsonschema python scripts/evidence/validate.py
 
 # Generate evidence index locally
-python3 scripts/evidence/collect.py --out evidence/index.json
+uvx --with pyyaml --with jsonschema python scripts/evidence/collect.py --out evidence/index.json
 
 # Dry-run promoter
-python3 scripts/promoter/deploy_promoter.py --dry-run
+python3 scripts/promoter/promote.py --dry-run --skip-registry-check --local-repo-dir .
 
 # Dry-run smoke
-python3 scripts/smoke/run_smoke.py --dry-run
+uvx --with pyyaml --with jsonschema python scripts/smoke/run_smoke.py --dry-run
 ```
 
 ## References
@@ -59,6 +59,7 @@ python3 scripts/smoke/run_smoke.py --dry-run
 - [Project Setup Runbook](./project-setup-runbook)
 - [Factory Process](./process)
 - [Roles and Ownership](./roles)
+- [Onboarding Automation](./onboarding)
 - [Dashboard Usage](./dashboard)
 - [Traceability Chain](./traceability)
 - [Templates Library](/templates/)
