@@ -5,6 +5,7 @@ on:
     branches: [main, master]
     paths:
       - "knowledge.sources.yaml"
+      - "knowledge.review.yaml"
       - "README.md"
       - "docs/**/*.md"
       - ".github/workflows/knowledge-export.yml"
@@ -12,6 +13,7 @@ on:
     branches: [main, master]
     paths:
       - "knowledge.sources.yaml"
+      - "knowledge.review.yaml"
       - "README.md"
       - "docs/**/*.md"
       - ".github/workflows/knowledge-export.yml"
@@ -22,8 +24,11 @@ permissions:
   actions: read
 
 jobs:
-  export:
+  review:
     runs-on: ubuntu-latest
+    outputs:
+      passed: ${{ steps.summary.outputs.passed }}
+      blocking_documents: ${{ steps.summary.outputs.blocking_documents }}
     steps:
       - name: Checkout business repo
         uses: actions/checkout@v4
@@ -59,6 +64,96 @@ jobs:
           fi
           cat /tmp/knowledge.changed || true
 
+      - name: Review documents
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .knowledge-deploy
+          EXTRA_ARGS=()
+          if [ -f /tmp/knowledge.changed ]; then
+            EXTRA_ARGS+=(--changed-files /tmp/knowledge.changed)
+          fi
+          uvx --with pyyaml --with jsonschema python -m scripts.knowledge.review_documents \
+            --repo-root "${GITHUB_WORKSPACE}" \
+            --deploy-root "${GITHUB_WORKSPACE}/.knowledge-deploy" \
+            --config "knowledge.sources.yaml" \
+            --review-ledger "knowledge.review.yaml" \
+            --summary-json /tmp/knowledge-review-summary.json \
+            --report-markdown /tmp/knowledge-review-report.md \
+            "${EXTRA_ARGS[@]}"
+          cat /tmp/knowledge-review-summary.json
+          cat /tmp/knowledge-review-report.md >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Read review summary
+        id: summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          PASSED="$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path("/tmp/knowledge-review-summary.json").read_text(encoding="utf-8"))
+          print(str(summary["passed"]).lower())
+          PY
+          )"
+          BLOCKING_DOCUMENTS="$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path("/tmp/knowledge-review-summary.json").read_text(encoding="utf-8"))
+          print(summary["blocking_documents"])
+          PY
+          )"
+          {
+            echo "passed=${PASSED}"
+            echo "blocking_documents=${BLOCKING_DOCUMENTS}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Fail pull request on blocking review issues
+        if: ${{ github.event_name == 'pull_request' && steps.summary.outputs.passed != 'true' }}
+        shell: bash
+        run: |
+          echo "知识文档未通过标准化/review，请先修正文档或更新 knowledge.review.yaml" >&2
+          exit 1
+
+  export:
+    needs: review
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout business repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout deploy contracts
+        uses: actions/checkout@v4
+        with:
+          repository: BrunoGaoSZ/ljwx-deploy
+          ref: main
+          token: ${{ secrets.DEPLOY_REPO_TOKEN }}
+          path: .knowledge-deploy
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Build changed-file list
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ]; then
+            git diff --name-status --find-renames "${{ github.event.before }}" "${{ github.sha }}" > /tmp/knowledge.changed
+          fi
+          cat /tmp/knowledge.changed || true
+
       - name: Export artifact
         shell: bash
         run: |
@@ -72,6 +167,7 @@ jobs:
             --repo-root "${GITHUB_WORKSPACE}" \
             --deploy-root "${GITHUB_WORKSPACE}/.knowledge-deploy" \
             --config "knowledge.sources.yaml" \
+            --review-ledger "knowledge.review.yaml" \
             --source-repo "${{ github.repository }}" \
             --source-ref "${{ github.ref }}" \
             --source-sha "${{ github.sha }}" \
@@ -118,7 +214,7 @@ jobs:
           if-no-files-found: error
 
       - name: Dispatch central ingest
-        if: ${{ steps.summary.outputs.exported == 'true' && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
+        if: ${{ steps.summary.outputs.exported == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
         env:
           DEPLOY_REPO_TOKEN: ${{ secrets.DEPLOY_REPO_TOKEN }}
         shell: bash

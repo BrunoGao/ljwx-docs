@@ -11,6 +11,7 @@ sources:
     product_area: documentation
     owner: team-docs
     review_status: approved
+    review_mode: required
     tags:
       - docs
       - overview
@@ -26,6 +27,7 @@ sources:
     product_area: documentation
     owner: team-docs
     review_status: approved
+    review_mode: legacy
     tags:
       - docs
       - manuals

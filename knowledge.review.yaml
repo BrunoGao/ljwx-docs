@@ -1,0 +1,11 @@
+version: 0.1.0
+
+documents:
+  - path: README.md
+    source_id: docs-public-readme
+    checksum: b7d084bba78ade32e1ac8abc4db40f47593f37055354fe48df99c894e9dd4aee
+    review_status: approved
+    approved_by: team-docs
+    effective_from: "2026-03-08T00:00:00Z"
+    standards_version: knowledge-mvp-1
+    review_notes: Initial README review baseline for knowledge workflow admission.
