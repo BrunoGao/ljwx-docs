@@ -17,24 +17,128 @@ on:
       - ".github/workflows/knowledge-export.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   export:
-    uses: BrunoGaoSZ/ljwx-workflow-templates/.github/workflows/knowledge-export.yml@main
-    with:
-      service: ljwx-docs
-      deploy_repo: BrunoGaoSZ/ljwx-deploy
-      deploy_ref: main
-      knowledge_config: knowledge.sources.yaml
-      target_env: dev
-      source_repo: ${{ github.repository }}
-      source_ref: ${{ github.ref }}
-      source_sha: ${{ github.sha }}
-      workflow_name: knowledge-export
-      export_mode: ${{ github.event_name == 'workflow_dispatch' && 'full' || 'changed' }}
-      base_sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || '' }}
-      head_sha: ${{ github.sha }}
-      dispatch_enabled: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && 'true' || 'false' }}
-      dispatch_skip_dify: "false"
-      artifact_name: knowledge-artifact-${{ github.sha }}
-    secrets:
-      deploy_repo_token: ${{ secrets.DEPLOY_REPO_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout business repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout deploy contracts
+        uses: actions/checkout@v4
+        with:
+          repository: BrunoGaoSZ/ljwx-deploy
+          ref: main
+          token: ${{ secrets.DEPLOY_REPO_TOKEN }}
+          path: .knowledge-deploy
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Build changed-file list
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff --name-status --find-renames "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}" > /tmp/knowledge.changed
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            git diff --name-status --find-renames "${{ github.event.before }}" "${{ github.sha }}" > /tmp/knowledge.changed
+          fi
+          cat /tmp/knowledge.changed || true
+
+      - name: Export artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .knowledge-deploy
+          EXTRA_ARGS=()
+          if [ -f /tmp/knowledge.changed ]; then
+            EXTRA_ARGS+=(--changed-files /tmp/knowledge.changed)
+          fi
+          uvx --with pyyaml --with jsonschema python -m scripts.knowledge.export_artifact \
+            --repo-root "${GITHUB_WORKSPACE}" \
+            --deploy-root "${GITHUB_WORKSPACE}/.knowledge-deploy" \
+            --config "knowledge.sources.yaml" \
+            --source-repo "${{ github.repository }}" \
+            --source-ref "${{ github.ref }}" \
+            --source-sha "${{ github.sha }}" \
+            --workflow-name "knowledge-export" \
+            --run-id "${{ github.run_id }}" \
+            --run-attempt "${{ github.run_attempt }}" \
+            --output "/tmp/knowledge-artifact-${{ github.sha }}.zip" \
+            --summary-json /tmp/knowledge-export-summary.json \
+            "${EXTRA_ARGS[@]}"
+          cat /tmp/knowledge-export-summary.json
+
+      - name: Read export summary
+        id: summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPORTED="$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path("/tmp/knowledge-export-summary.json").read_text(encoding="utf-8"))
+          print(str(summary["exported"]).lower())
+          PY
+          )"
+          ARTIFACT_FILE="$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path("/tmp/knowledge-export-summary.json").read_text(encoding="utf-8"))
+          print(summary["artifact_file"])
+          PY
+          )"
+          {
+            echo "exported=${EXPORTED}"
+            echo "artifact_file=${ARTIFACT_FILE}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Upload artifact
+        if: ${{ steps.summary.outputs.exported == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: knowledge-artifact-${{ github.sha }}
+          path: ${{ steps.summary.outputs.artifact_file }}
+          if-no-files-found: error
+
+      - name: Dispatch central ingest
+        if: ${{ steps.summary.outputs.exported == 'true' && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
+        env:
+          DEPLOY_REPO_TOKEN: ${{ secrets.DEPLOY_REPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${DEPLOY_REPO_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/BrunoGaoSZ/ljwx-deploy/dispatches" \
+            -d @- <<JSON
+          {
+            "event_type": "knowledge_artifact_ready",
+            "client_payload": {
+              "source_repo": "${{ github.repository }}",
+              "source_sha": "${{ github.sha }}",
+              "source_run_id": "${{ github.run_id }}",
+              "artifact_name": "knowledge-artifact-${{ github.sha }}",
+              "target_env": "dev",
+              "skip_dify": "false"
+            }
+          }
+          JSON
