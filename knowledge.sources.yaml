@@ -1,0 +1,33 @@
+version: 0.1.0
+service: ljwx-docs
+
+sources:
+  - id: docs-public-readme
+    include:
+      - README.md
+    visibility: public
+    source_type: repo_doc
+    doc_type: product_overview
+    product_area: documentation
+    owner: team-docs
+    review_status: approved
+    tags:
+      - docs
+      - overview
+      - public
+    title_strategy: first_heading
+
+  - id: docs-public-manuals
+    include:
+      - docs/**/*.md
+    visibility: public
+    source_type: repo_doc
+    doc_type: user_guide
+    product_area: documentation
+    owner: team-docs
+    review_status: approved
+    tags:
+      - docs
+      - manuals
+      - public
+    title_strategy: first_heading

@@ -1,0 +1,40 @@
+name: knowledge-export
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "knowledge.sources.yaml"
+      - "README.md"
+      - "docs/**/*.md"
+      - ".github/workflows/knowledge-export.yml"
+  push:
+    branches: [main, master]
+    paths:
+      - "knowledge.sources.yaml"
+      - "README.md"
+      - "docs/**/*.md"
+      - ".github/workflows/knowledge-export.yml"
+  workflow_dispatch:
+
+jobs:
+  export:
+    uses: BrunoGaoSZ/ljwx-workflow-templates/.github/workflows/knowledge-export.yml@main
+    with:
+      service: ljwx-docs
+      deploy_repo: BrunoGaoSZ/ljwx-deploy
+      deploy_ref: main
+      knowledge_config: knowledge.sources.yaml
+      target_env: dev
+      source_repo: ${{ github.repository }}
+      source_ref: ${{ github.ref }}
+      source_sha: ${{ github.sha }}
+      workflow_name: knowledge-export
+      export_mode: ${{ github.event_name == 'workflow_dispatch' && 'full' || 'changed' }}
+      base_sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || '' }}
+      head_sha: ${{ github.sha }}
+      dispatch_enabled: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && 'true' || 'false' }}
+      dispatch_skip_dify: "false"
+      artifact_name: knowledge-artifact-${{ github.sha }}
+    secrets:
+      deploy_repo_token: ${{ secrets.DEPLOY_REPO_TOKEN }}
